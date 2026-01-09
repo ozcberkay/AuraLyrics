@@ -1,0 +1,61 @@
+import Foundation
+
+enum LyricsError: Error {
+    case invalidURL
+    case noData
+    case decodeError
+    case notFound
+}
+
+class LyricsFetcher {
+    private let baseURL = "https://lrclib.net/api/get"
+    
+    func fetchLyrics(track: String, artist: String, album: String, duration: Double) async throws -> [LyricsLine] {
+        var urlComponents = URLComponents(string: baseURL)!
+        urlComponents.queryItems = [
+            URLQueryItem(name: "track_name", value: track),
+            URLQueryItem(name: "artist_name", value: artist),
+            URLQueryItem(name: "album_name", value: album),
+            URLQueryItem(name: "duration", value: String(Int(duration)))
+        ]
+        
+        print("[LyricsFetcher] Fetching: \(track) by \(artist) (Duration: \(Int(duration))s)")
+        
+        guard let url = urlComponents.url else {
+            throw LyricsError.invalidURL
+        }
+        
+        let (data, response) = try await URLSession.shared.data(from: url)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw LyricsError.noData
+        }
+        
+        if httpResponse.statusCode == 404 {
+            throw LyricsError.notFound
+        }
+        
+        guard httpResponse.statusCode == 200 else {
+            throw LyricsError.noData
+        }
+        
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        
+        do {
+            let libResponse = try decoder.decode(LRCLibResponse.self, from: data)
+            if let syncedLyrics = libResponse.syncedLyrics {
+                return LRCParser.parse(lrcContent: syncedLyrics)
+            } else if let plainLyrics = libResponse.plainLyrics {
+                // If only plain lyrics are available, we can't sync but maybe show them?
+                // For now, return as a single line at 0s or empty.
+                return [LyricsLine(startTime: 0, text: plainLyrics)]
+            } else {
+                return []
+            }
+        } catch {
+            print("[LyricsFetcher] Decode error: \(error)")
+            throw LyricsError.decodeError
+        }
+    }
+}
