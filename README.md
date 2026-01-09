@@ -17,8 +17,8 @@
 ### Via Homebrew (Recommended)
 
 ```bash
-brew tap berkayozcan/auralyrics
-brew install auralyrics
+brew tap ozcberkay/tap
+brew install --cask auralyrics
 ```
 
 ### Manual Installation
