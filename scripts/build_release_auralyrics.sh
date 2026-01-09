@@ -38,9 +38,9 @@ cp "$EXECUTABLE" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 # Our code looks for Bundle.main or dev path. In release app, Bundle.main is the .app.
 # We need to make sure Resources are in Contents/Resources.
 
-# Find the resource bundle created by SwiftPM
-RESOURCE_BUNDLE=$(find "$BUILD_DIR" -name "${APP_NAME}_${APP_NAME}.bundle" -maxdepth 1)
-if [ -d "$RESOURCE_BUNDLE" ]; then
+# Find the resource bundle created by SwiftPM (searching deeper for architecture-specific paths)
+RESOURCE_BUNDLE=$(find .build -name "${APP_NAME}_${APP_NAME}.bundle" | grep "release" | head -n 1)
+if [ -n "$RESOURCE_BUNDLE" ] && [ -d "$RESOURCE_BUNDLE" ]; then
     echo "   Found Resource Bundle: $RESOURCE_BUNDLE"
     cp -r "$RESOURCE_BUNDLE/"* "$APP_BUNDLE/Contents/Resources/"
 fi
@@ -58,16 +58,22 @@ cat <<EOF > "$APP_BUNDLE/Contents/Info.plist"
     <key>CFBundleName</key>
     <string>$APP_NAME</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.0</string>
+    <string>1.0.1</string>
     <key>CFBundleVersion</key>
     <string>1</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon.icns</string>
     <key>LSUIElement</key>
     <true/> <!-- Hides from Dock if true, removed if you want Dock icon -->
 </dict>
 </plist>
 EOF
 
-# 5. Zip it
+# 5. Ad-hoc Sign the App (Required for M1/M2/M3 chips)
+echo "✍️  Ad-hoc Signing..."
+codesign --force --deep --sign - "$APP_BUNDLE"
+
+# 6. Zip it
 echo "🤐 Zipping..."
 cd "$OUTPUT_DIR"
 ZIP_NAME="$APP_NAME.tar.gz"
