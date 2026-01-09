@@ -2,7 +2,7 @@
 
 **AuraLyrics** is a minimalist, refined Spotify lyrics application for macOS. It features a beautiful, server-side rendered floating window that displays synchronized lyrics in real-time.
 
-![AuraLyrics](https://placeholder-image-url-if-you-have-one.png)
+![AuraLyrics](assets/banner.svg)
 
 ## Features
 
