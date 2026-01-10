@@ -61,6 +61,9 @@ struct LyricsView: View {
                                             .foregroundStyle(isActive ? .white : .white.opacity(0.4))
                                             .blur(radius: isActive ? 0 : 0.5)
                                             .scaleEffect(isActive ? 1.05 : 1.0)
+                                            .lineLimit(2) // Allow up to 2 lines
+                                            .minimumScaleFactor(0.7) // Scale down if needed
+                                            .fixedSize(horizontal: false, vertical: true) // Allow vertical growth
                                             .id(line.id)
                                     }
                                     

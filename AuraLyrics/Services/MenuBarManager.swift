@@ -33,8 +33,8 @@ class MenuBarManager: NSObject {
         let controlsItem = NSMenuItem()
         let controlsView = MenuControlsView()
         let hostingView = NSHostingView(rootView: controlsView)
-        // Set a reasonable frame. NSHostingView usually auto-sizes, but for menu items explicit frame is safer.
-        hostingView.frame = NSRect(x: 0, y: 0, width: 240, height: 75) // Adjusted height for info+controls
+        // Adjust frame to match the new vertical layout size (Artwork 120 + Text + Controls + Padding)
+        hostingView.frame = NSRect(x: 0, y: 0, width: 260, height: 290)
         controlsItem.view = hostingView
         menu.addItem(controlsItem)
         

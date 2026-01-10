@@ -7,6 +7,7 @@ struct PlaybackState: Equatable, CustomStringConvertible {
     let isPlaying: Bool
     let position: TimeInterval
     let duration: TimeInterval
+    let artworkUrl: String // URL string for the album art
     let timestamp: Date // Time when this state was captured, for sync interpolation
     
     var description: String {
@@ -20,6 +21,7 @@ struct PlaybackState: Equatable, CustomStringConvertible {
         isPlaying: false,
         position: 0,
         duration: 0,
+        artworkUrl: "",
         timestamp: Date()
     )
 }

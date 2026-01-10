@@ -10,32 +10,36 @@ class SpotifyService: ObservableObject {
     @Published var currentState: PlaybackState = .empty
     
     private var cancellables = Set<AnyCancellable>()
-    private var appleScript: NSAppleScript?
     
     // Distributed Notification specifically for Spotify
     private let spotifyNotificationName = Notification.Name("com.spotify.client.PlaybackStateChanged")
     
+    // Embedded AppleScript to ensure it works without external resources
+    // Fetches: Name, Artist, Album, Duration, Position, State, ArtworkURL
+    private let pollScriptSource: String = """
+    tell application "Spotify"
+        if it is running then
+            try
+                set t to current track
+                set tName to name of t
+                set tArtist to artist of t
+                set tAlbum to album of t
+                set tDuration to duration of t
+                set tArtwork to artwork url of t
+                set pState to player state
+                set pPosition to player position
+                
+                return tName & "|||" & tArtist & "|||" & tAlbum & "|||" & tDuration & "|||" & pPosition & "|||" & pState & "|||" & tArtwork
+            on error
+                return "ERROR"
+            end try
+        else
+            return "NOT_RUNNING"
+        end if
+    end tell
+    """
+    
     private init() {
-        // Load the AppleScript
-        if let scriptURL = Bundle.main.url(forResource: "SpotifyScript", withExtension: "scpt") {
-            var error: NSDictionary?
-            self.appleScript = NSAppleScript(contentsOf: scriptURL, error: &error)
-            if let error = error {
-                print("[SpotifyService] Error loading AppleScript: \(error)")
-            }
-        } else {
-            // Fallback for development/testing
-            let devPath = "/Users/berkayozcan/workspace/LyricsMaster/AuraLyrics/Resources/SpotifyScript.scpt"
-            let devURL = URL(fileURLWithPath: devPath)
-            var error: NSDictionary?
-            self.appleScript = NSAppleScript(contentsOf: devURL, error: &error)
-             if let error = error {
-                print("[SpotifyService] Error loading AppleScript from dev path: \(error)")
-            } else {
-                print("[SpotifyService] Loaded AppleScript from dev path.")
-            }
-        }
-        
         setupObservers()
         startPolling()
         // Initial fetch
@@ -60,81 +64,8 @@ class SpotifyService: ObservableObject {
     }
     
     @objc private func playbackStateChanged(_ notification: Notification) {
-        guard let userInfo = notification.userInfo else {
-            fetchSpotifyState()
-            return
-        }
-        
-        // Try to parse the notification directly for instant feedback
-        if let newState = parseNotificationUserInfo(userInfo) {
-            DispatchQueue.main.async {
-                if self.currentState != newState {
-                    self.currentState = newState
-                    // print("[SpotifyService] Fast Update: \(newState.track) @ \(newState.position)")
-                }
-            }
-        } else {
-            // Fallback if data is missing/obfuscated
-            fetchSpotifyState()
-        }
-    }
-    
-    // Attempt to extract data purely from the Dictionary (no AppleScript)
-    private func parseNotificationUserInfo(_ userInfo: [AnyHashable: Any]) -> PlaybackState? {
-        // Keys are often: "Name", "Artist", "Album", "Duration", "Playback Position", "Player State"
-        // Note: Duration and Position are usually Numbers (Int or Double) in milliseconds or seconds.
-        
-        guard let track = userInfo["Name"] as? String,
-              let artist = userInfo["Artist"] as? String,
-              let stateString = userInfo["Player State"] as? String
-        else {
-            return nil
-        }
-        
-        let album = userInfo["Album"] as? String ?? ""
-        let isPlaying = (stateString == "Playing") // Note: Capitalized "Playing" in userInfo usually
-        
-        // Parse Duration
-        var duration: Double = {
-            if let d = userInfo["Duration"] as? Double { return d }
-            if let d = userInfo["Duration"] as? Int { return Double(d) }
-            return 0
-        }()
-        
-        // Parse Position
-        var position: Double = {
-            if let p = userInfo["Playback Position"] as? Double { return p }
-            if let p = userInfo["Playback Position"] as? Int { return Double(p) }
-            return 0
-        }()
-        
-        // Normalize: Spotify sometimes sends milliseconds (e.g. 212000 for 212s)
-        // Heuristic: If duration is > 3000 (50 mins is rare, but possible, but 3000s is 50m. 212000 is 58 hours).
-        // Let's use a safe threshold. If > 10000 (approx 3 hours), it's definitely ms.
-        // Standard pop song ~200s. 200,000 > 10000.
-        if duration > 10000 {
-            duration /= 1000
-        }
-        
-        // Position should follow same logic or be checked independently
-        if position > 10000 && position > duration {
-             // If position is seemingly in ms (and larger than duration in seconds), fix it.
-             position /= 1000
-        } else if position > 10000 {
-            // Just a long song or ms? If duration was ms, position likely was too.
-            // If duration was already fixed to e.g. 212, and position is 50000, fix position.
-            position /= 1000
-        }
-        
-        return PlaybackState(
-            track: track,
-            artist: artist,
-            album: album,
-            isPlaying: isPlaying,
-            position: position, // Will verify if this needs /1000
-            duration: duration, // Will verify if this needs /1000
-            timestamp: Date()
-        )
+        // Always fetch full state to ensure we get artwork and correct sync
+        fetchSpotifyState()
     }
     
     func nextTrack() {
@@ -152,8 +83,6 @@ class SpotifyService: ObservableObject {
     private func runSpotifyCommand(_ command: String) {
         let source = "tell application \"Spotify\" to \(command)"
         var error: NSDictionary?
-        // Fire and forget, no need to wait for result typically, but executing on bg dict might be safer?
-        // AppleScript must be run on main thread often for UI scripting, but this is simple IPC.
         NSAppleScript(source: source)?.executeAndReturnError(&error)
         
         // Optimistic update? Or just wait for 2s poll?
@@ -165,18 +94,21 @@ class SpotifyService: ObservableObject {
     
     /// Executes the AppleScript to get the current state
     func fetchSpotifyState() {
-        guard let script = appleScript else { return }
-        
         var errorDict: NSDictionary?
+        // Use the embedded source
+        guard let script = NSAppleScript(source: pollScriptSource) else {
+            print("[SpotifyService] Failed to init AppleScript")
+            return
+        }
+        
         let descriptor = script.executeAndReturnError(&errorDict)
         
         if let error = errorDict {
-            print("[SpotifyService] Script Execution Error: \(error)")
+            // print("[SpotifyService] Script Execution Error: \(error)") // Squelch common errors?
             return
         }
         
         guard let stringResult = descriptor.stringValue else {
-            // If Spotify isn't running or returns non-string
             return
         }
         
@@ -190,7 +122,7 @@ class SpotifyService: ObservableObject {
         }
         
         if stringResult.starts(with: "ERROR") {
-            print("[SpotifyService] AppleScript Error Signal: \(stringResult)")
+            // print("[SpotifyService] AppleScript Error Signal: \(stringResult)")
             return
         }
         
@@ -198,10 +130,14 @@ class SpotifyService: ObservableObject {
     }
     
     private func parseResult(_ input: String) {
-        // Format: Name|||Artist|||Album|||Duration(s)|||Position(s)|||State(playing/paused)
+        // Format: Name|||Artist|||Album|||Duration(s)|||Position(s)|||State(playing/paused)|||ArtworkUrl
+        
+        // Log raw input for debug
+        // print("[SpotifyService] Raw AppleScript Result: \(input)")
+        
         let parts = input.components(separatedBy: "|||")
         
-        guard parts.count >= 6 else {
+        guard parts.count >= 7 else {
             print("[SpotifyService] Parse Error: Unexpected format -> \(input)")
             return
         }
@@ -212,9 +148,26 @@ class SpotifyService: ObservableObject {
         let durationString = parts[3].replacingOccurrences(of: ",", with: ".")
         let positionString = parts[4].replacingOccurrences(of: ",", with: ".")
         
-        let duration = Double(durationString) ?? 0.0
-        let position = Double(positionString) ?? 0.0
+        var duration = Double(durationString) ?? 0.0
+        var position = Double(positionString) ?? 0.0
+        
+        // Normalize milliseconds to seconds
+        // Spotify AppleScript often returns durations in milliseconds (e.g., 212000 for 212s)
+        if duration > 10000 {
+            duration /= 1000
+        }
+        
+        // Same for position, though position usually follows duration scale
+        if position > 10000 && position > duration {
+             // If position is vastly larger than normalized duration (e.g. it was also in ms)
+             position /= 1000
+        } else if position > duration * 1000 {
+            // If position is raw ms but duration was just normalized
+             position /= 1000
+        }
+        
         let stateString = parts[5]
+        let artworkUrl = parts[6]
         
         let isPlaying = (stateString == "playing")
         
@@ -225,15 +178,13 @@ class SpotifyService: ObservableObject {
             isPlaying: isPlaying,
             position: position,
             duration: duration,
+            artworkUrl: artworkUrl,
             timestamp: Date()
         )
         
         DispatchQueue.main.async {
-            // Determine if meaningful change occurred to reduce UI churn?
-            // For now, we update on every event to keep sync (position might have jumped)
             if self.currentState != newState {
                 self.currentState = newState
-                print(newState) // Log for verification
             }
         }
     }

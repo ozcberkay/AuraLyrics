@@ -35,7 +35,8 @@ struct KaraokeView: View {
                             .scaleEffect(inactiveScale)
                             .blur(radius: 1)
                             .lineLimit(1)
-                            .frame(height: 30)
+                            .minimumScaleFactor(0.8) // Slight scale allowed
+                            .frame(minHeight: 30)
                             .transition(.opacity)
                             .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
                     } else {
@@ -47,9 +48,12 @@ struct KaraokeView: View {
                         .font(.system(size: 32, weight: .heavy, design: .rounded))
                         .foregroundStyle(activeColor)
                         .scaleEffect(activeScale)
-                        .shadow(color: .black, radius: 2, x: 0, y: 2) // Stronger shadow
-                        .lineLimit(1) 
-                        .frame(height: 50)
+                        .shadow(color: .black, radius: 2, x: 0, y: 2)
+                        .lineLimit(2) // Allow up to 2 lines
+                        .minimumScaleFactor(0.6) // Shrink down to 60% size if needed
+                        .multilineTextAlignment(.center)
+                        .frame(minHeight: 50) // Flexible height
+                        .padding(.vertical, 4)
                         .transition(.scale)
                         .id(activeID)
                     
@@ -62,11 +66,12 @@ struct KaraokeView: View {
                             .scaleEffect(inactiveScale)
                             .blur(radius: 1)
                             .lineLimit(1)
-                            .frame(height: 30)
+                            .minimumScaleFactor(0.8)
+                            .frame(minHeight: 30)
                             .transition(.opacity)
                             .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
                     } else {
-                         Spacer().frame(height: 30)
+                        Spacer().frame(height: 30)
                     }
                     
                 } else {
