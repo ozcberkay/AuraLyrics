@@ -23,7 +23,7 @@ brew install --cask auralyrics
 
 ### Manual Installation
 
-1.  Download the latest release from the [Releases](https://github.com/berkayozcan/AuraLyrics/releases) page.
+1.  Download the latest release from the [Releases](https://github.com/ozcberkay/AuraLyrics/releases) page.
 2.  Unzip `AuraLyrics.tar.gz`.
 3.  Drag `AuraLyrics.app` to your Applications folder.
 
@@ -45,7 +45,7 @@ brew install --cask auralyrics
 ### Building
 
 ```bash
-git clone https://github.com/berkayozcan/AuraLyrics.git
+git clone https://github.com/ozcberkay/AuraLyrics.git
 cd AuraLyrics
 swift build -c release
 ```
