@@ -103,8 +103,8 @@ class SpotifyService: ObservableObject {
         
         let descriptor = script.executeAndReturnError(&errorDict)
         
-        if let error = errorDict {
-            // print("[SpotifyService] Script Execution Error: \(error)") // Squelch common errors?
+        if errorDict != nil {
+            // print("[SpotifyService] Script Execution Error: \(String(describing: errorDict))") // Squelch common errors?
             return
         }
         
@@ -114,8 +114,8 @@ class SpotifyService: ObservableObject {
         
         if stringResult == "NOT_RUNNING" {
             DispatchQueue.main.async {
-                if self.currentState.isPlaying {
-                    self.currentState = .empty
+                if self.currentState != .notRunning {
+                    self.currentState = .notRunning
                 }
             }
             return
@@ -179,6 +179,7 @@ class SpotifyService: ObservableObject {
             position: position,
             duration: duration,
             artworkUrl: artworkUrl,
+            isSpotifyRunning: true,
             timestamp: Date()
         )
         

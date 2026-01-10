@@ -63,6 +63,8 @@ cat <<EOF > "$APP_BUNDLE/Contents/Info.plist"
     <string>1</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon.icns</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>AuraLyrics needs to control Spotify to get the current track and display lyrics.</string>
     <key>LSUIElement</key>
     <true/> <!-- Hides from Dock if true, removed if you want Dock icon -->
 </dict>

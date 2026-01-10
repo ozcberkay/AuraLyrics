@@ -84,7 +84,7 @@ struct LyricsView: View {
                     VStack(spacing: 12) {
                         Image(systemName: "music.note.list")
                             .font(.system(size: 30))
-                        Text("Spotify is Paused")
+                        Text(spotifyService.currentState.isSpotifyRunning ? "Spotify is Paused" : "Please Open Spotify")
                             .font(.system(size: 14, weight: .medium, design: .rounded))
                     }
                     .opacity(0.5)

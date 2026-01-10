@@ -93,7 +93,7 @@ struct KaraokeView: View {
                         }
                         .transition(.opacity)
                     } else {
-                        Text("Waiting for music...")
+                        Text(spotifyService.currentState.isSpotifyRunning ? "Waiting for music..." : "Please Open Spotify")
                             .font(.system(size: 16, weight: .medium, design: .rounded))
                             .foregroundStyle(.white.opacity(0.5))
                             .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
