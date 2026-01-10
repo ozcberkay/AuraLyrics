@@ -20,7 +20,7 @@ class MenuBarManager: NSObject {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "music.note.list", accessibilityDescription: "LyricsMaster")
+            button.image = NSImage(systemSymbolName: "music.note.list", accessibilityDescription: "AuraLyrics")
         }
         
         updateMenu()
@@ -41,7 +41,7 @@ class MenuBarManager: NSObject {
         menu.addItem(NSMenuItem.separator())
         
         // --- Song Info (Disabled - moved to Karaoke Header) ---
-        // let songInfo = "LyricsMaster" 
+        // let songInfo = "AuraLyrics" 
         // let infoItem = NSMenuItem(title: songInfo, action: nil, keyEquivalent: "")
         // infoItem.isEnabled = false
         // menu.addItem(infoItem)

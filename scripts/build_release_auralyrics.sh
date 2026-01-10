@@ -33,7 +33,7 @@ cp "$EXECUTABLE" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
 # Copy resources if any (e.g. SpotifyScript.scpt)
 # NOTE: SwiftPM bundles resources differently, checking build path
-# If your resource is copied to the bundle by SwiftPM, we might need to copy it from .build/release/LyricsMaster_LyricsMaster.bundle
+# If your resource is copied to the bundle by SwiftPM, we might need to copy it from .build/release/AuraLyrics_AuraLyrics.bundle
 # For now, we assume simple copy if exists, or if embedded in binary logic.
 # Our code looks for Bundle.main or dev path. In release app, Bundle.main is the .app.
 # We need to make sure Resources are in Contents/Resources.
