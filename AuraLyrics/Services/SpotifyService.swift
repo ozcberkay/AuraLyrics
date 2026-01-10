@@ -8,6 +8,7 @@ class SpotifyService: ObservableObject {
     static let shared = SpotifyService()
     
     @Published var currentState: PlaybackState = .empty
+    @Published var artworkImage: NSImage? = nil 
     
     private var cancellables = Set<AnyCancellable>()
     
@@ -104,7 +105,6 @@ class SpotifyService: ObservableObject {
         let descriptor = script.executeAndReturnError(&errorDict)
         
         if errorDict != nil {
-            // print("[SpotifyService] Script Execution Error: \(String(describing: errorDict))") // Squelch common errors?
             return
         }
         
@@ -116,13 +116,13 @@ class SpotifyService: ObservableObject {
             DispatchQueue.main.async {
                 if self.currentState != .notRunning {
                     self.currentState = .notRunning
+                    self.artworkImage = nil
                 }
             }
             return
         }
         
         if stringResult.starts(with: "ERROR") {
-            // print("[SpotifyService] AppleScript Error Signal: \(stringResult)")
             return
         }
         
@@ -132,14 +132,18 @@ class SpotifyService: ObservableObject {
     private func parseResult(_ input: String) {
         // Format: Name|||Artist|||Album|||Duration(s)|||Position(s)|||State(playing/paused)|||ArtworkUrl
         
-        // Log raw input for debug
-        // print("[SpotifyService] Raw AppleScript Result: \(input)")
-        
         let parts = input.components(separatedBy: "|||")
         
         guard parts.count >= 7 else {
             print("[SpotifyService] Parse Error: Unexpected format -> \(input)")
             return
+        }
+        
+        let artworkUrl = parts[6]
+        
+        // Check if artwork URL changed, then fetch
+        if artworkUrl != currentState.artworkUrl && !artworkUrl.isEmpty {
+           fetchArtwork(url: artworkUrl)
         }
         
         let track = parts[0]
@@ -152,22 +156,16 @@ class SpotifyService: ObservableObject {
         var position = Double(positionString) ?? 0.0
         
         // Normalize milliseconds to seconds
-        // Spotify AppleScript often returns durations in milliseconds (e.g., 212000 for 212s)
         if duration > 10000 {
             duration /= 1000
         }
-        
-        // Same for position, though position usually follows duration scale
         if position > 10000 && position > duration {
-             // If position is vastly larger than normalized duration (e.g. it was also in ms)
              position /= 1000
         } else if position > duration * 1000 {
-            // If position is raw ms but duration was just normalized
              position /= 1000
         }
         
         let stateString = parts[5]
-        let artworkUrl = parts[6]
         
         let isPlaying = (stateString == "playing")
         
@@ -179,13 +177,25 @@ class SpotifyService: ObservableObject {
             position: position,
             duration: duration,
             artworkUrl: artworkUrl,
-            isSpotifyRunning: true,
+            isSpotifyRunning: true, // If we got here, it's running
             timestamp: Date()
         )
         
         DispatchQueue.main.async {
             if self.currentState != newState {
                 self.currentState = newState
+            }
+        }
+    }
+    
+    private func fetchArtwork(url: String) {
+        guard let validUrl = URL(string: url) else { return }
+        
+        DispatchQueue.global(qos: .background).async {
+            if let data = try? Data(contentsOf: validUrl), let image = NSImage(data: data) {
+                DispatchQueue.main.async {
+                    self.artworkImage = image
+                }
             }
         }
     }

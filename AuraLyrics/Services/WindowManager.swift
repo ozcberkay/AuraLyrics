@@ -3,29 +3,29 @@ import SwiftUI
 
 class WindowManager: NSObject, NSApplicationDelegate {
     var listPanel: FloatingPanel?
-    var karaokePanel: FloatingPanel?
+    var auraPanel: FloatingPanel?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // --- Setup List Window ---
+        // --- Setup List Window (Lyrics View) ---
         let listP = FloatingPanel(
             contentRect: NSRect(x: 100, y: 300, width: 400, height: 600),
             backing: .buffered,
             defer: false
         )
         listP.contentView = NSHostingView(rootView: LyricsView())
-        listP.makeKeyAndOrderFront(nil)
+        // listP.makeKeyAndOrderFront(nil) // Handled by MenuBarManager
         self.listPanel = listP
         
-        // --- Setup Karaoke Window ---
+        // --- Setup Aura Window ---
         // Hidden by default
-        let karaokeP = FloatingPanel(
+        let auraP = FloatingPanel(
             contentRect: NSRect(x: 100, y: 100, width: 600, height: 160),
             backing: .buffered,
             defer: false
         )
-        karaokeP.contentView = NSHostingView(rootView: KaraokeView())
-        // karaokeP.makeKeyAndOrderFront(nil) // Start hidden
-        self.karaokePanel = karaokeP
+        auraP.contentView = NSHostingView(rootView: AuraView())
+        // auraP.makeKeyAndOrderFront(nil) // Start hidden
+        self.auraPanel = auraP
         
         // --- Setup Menu Bar ---
         MenuBarManager.shared.setup(windowManager: self)
@@ -36,7 +36,7 @@ class WindowManager: NSObject, NSApplicationDelegate {
     
     // MARK: - Window Control
     
-    func toggleListWindow(visible: Bool) {
+    func toggleLyricsWindow(visible: Bool) {
         if visible {
             listPanel?.makeKeyAndOrderFront(nil)
         } else {
@@ -44,19 +44,19 @@ class WindowManager: NSObject, NSApplicationDelegate {
         }
     }
     
-    func toggleKaraokeWindow(visible: Bool) {
+    func toggleAuraWindow(visible: Bool) {
         if visible {
-            karaokePanel?.makeKeyAndOrderFront(nil)
+            auraPanel?.makeKeyAndOrderFront(nil)
         } else {
-            karaokePanel?.orderOut(nil)
+            auraPanel?.orderOut(nil)
         }
     }
     
-    func setListWindowClickThrough(enabled: Bool) {
+    func setLyricsWindowClickThrough(enabled: Bool) {
         listPanel?.setClickThrough(enabled)
     }
     
-    func setKaraokeWindowClickThrough(enabled: Bool) {
-        karaokePanel?.setClickThrough(enabled)
+    func setAuraWindowClickThrough(enabled: Bool) {
+        auraPanel?.setClickThrough(enabled)
     }
 }

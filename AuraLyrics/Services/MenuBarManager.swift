@@ -8,14 +8,32 @@ class MenuBarManager: NSObject {
     private var statusItem: NSStatusItem!
     private weak var windowManager: WindowManager?
     
-    // State to track toggles
-    private var isListWindowVisible = true
-    private var isKaraokeWindowVisible = false
-    private var isListLocked = false
-    private var isKaraokeLocked = false
+    // Mode Management
+    enum AppMode: String {
+        case lyrics
+        case aura
+    }
+    
+    private(set) var currentMode: AppMode = .lyrics
+    private let modeKey = "AuraLyricsAppMode"
+    
+    // State to track locks (independent of mode)
+    private var isLyricsLocked = false
+    private var isAuraLocked = false
+    
+    // Track visibility
+    private var isWindowVisible = true
     
     func setup(windowManager: WindowManager) {
         self.windowManager = windowManager
+        
+        // Load saved mode
+        if let savedModeString = UserDefaults.standard.string(forKey: modeKey),
+           let savedMode = AppMode(rawValue: savedModeString) {
+            self.currentMode = savedMode
+        } else {
+            self.currentMode = .lyrics // Default
+        }
         
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
@@ -23,6 +41,47 @@ class MenuBarManager: NSObject {
             button.image = NSImage(systemSymbolName: "music.note.list", accessibilityDescription: "AuraLyrics")
         }
         
+        // Apply initial state
+        applyMode(currentMode)
+        updateMenu()
+    }
+    
+    private func applyMode(_ mode: AppMode) {
+        // When applying a mode (switching or launch), we ensure it is visible
+        isWindowVisible = true
+        
+        switch mode {
+        case .lyrics:
+            windowManager?.toggleAuraWindow(visible: false)
+            windowManager?.toggleLyricsWindow(visible: true)
+        case .aura:
+            windowManager?.toggleLyricsWindow(visible: false)
+            windowManager?.toggleAuraWindow(visible: true)
+        }
+        UserDefaults.standard.set(mode.rawValue, forKey: modeKey)
+    }
+    
+    func hideWindows() {
+        isWindowVisible = false
+        windowManager?.toggleLyricsWindow(visible: false)
+        windowManager?.toggleAuraWindow(visible: false)
+        updateMenu()
+    }
+    
+    func showCurrentWindow() {
+        applyMode(currentMode)
+        updateMenu()
+    }
+    
+    func switchToAuraMode() {
+        currentMode = .aura
+        applyMode(.aura)
+        updateMenu()
+    }
+    
+    func switchToLyricsMode() {
+        currentMode = .lyrics
+        applyMode(.lyrics)
         updateMenu()
     }
     
@@ -40,37 +99,71 @@ class MenuBarManager: NSObject {
         
         menu.addItem(NSMenuItem.separator())
         
-        // --- Song Info (Disabled - moved to Karaoke Header) ---
-        // let songInfo = "AuraLyrics" 
-        // let infoItem = NSMenuItem(title: songInfo, action: nil, keyEquivalent: "")
-        // infoItem.isEnabled = false
-        // menu.addItem(infoItem)
+        // --- View Controls ---
         
-        // menu.addItem(NSMenuItem.separator())
+        // 1. Show/Hide Current
+        if !isWindowVisible {
+            let title = currentMode == .lyrics ? "Show Lyrics View" : "Show Aura Mode"
+            let item = NSMenuItem(title: title, action: #selector(showCurrentWindowAction), keyEquivalent: "s")
+            item.target = self
+            menu.addItem(item)
+        } else {
+            let title = "Hide Window"
+            let item = NSMenuItem(title: title, action: #selector(hideWindowsAction), keyEquivalent: "h")
+            item.target = self
+            menu.addItem(item)
+        }
         
-        // --- Windows ---
-        let toggleList = NSMenuItem(title: "Show List Window", action: #selector(toggleList), keyEquivalent: "l")
-        toggleList.state = isListWindowVisible ? .on : .off
-        toggleList.target = self
-        menu.addItem(toggleList)
-
-        let toggleKaraoke = NSMenuItem(title: "Show Karaoke Window", action: #selector(toggleKaraoke), keyEquivalent: "k")
-        toggleKaraoke.state = isKaraokeWindowVisible ? .on : .off
-        toggleKaraoke.target = self
-        menu.addItem(toggleKaraoke)
+        // 2. Switch Mode
+        // Context-aware switching
+        if currentMode == .lyrics {
+            let item = NSMenuItem(title: "Switch to Aura Mode", action: #selector(switchToAuraAction), keyEquivalent: "l")
+            item.target = self
+            menu.addItem(item)
+        } else {
+            let item = NSMenuItem(title: "Return to Lyrics View", action: #selector(switchToLyricsAction), keyEquivalent: "l")
+            item.target = self
+            menu.addItem(item)
+        }
+        
+        menu.addItem(NSMenuItem.separator())
+        
+        // --- Theme ---
+        let themeMenu = NSMenu()
+        let themeItem = NSMenuItem(title: "Theme", action: nil, keyEquivalent: "")
+        themeItem.submenu = themeMenu
+        menu.addItem(themeItem)
+        
+        for theme in AppTheme.allCases {
+            let item = NSMenuItem(title: theme.rawValue, action: #selector(changeTheme(_:)), keyEquivalent: "")
+            item.target = self
+            // Note: Cannot easily bind state here without observing, but we can check current
+            item.state = (ThemeManager.shared.currentTheme == theme) ? .on : .off
+            item.representedObject = theme
+            themeMenu.addItem(item)
+        }
         
         menu.addItem(NSMenuItem.separator())
         
         // --- Locking ---
-        let lockList = NSMenuItem(title: "Lock List (Click-Through)", action: #selector(toggleLockList), keyEquivalent: "")
-        lockList.state = isListLocked ? .on : .off
-        lockList.target = self
-        menu.addItem(lockList)
-        
-        let lockKaraoke = NSMenuItem(title: "Lock Karaoke (Click-Through)", action: #selector(toggleLockKaraoke), keyEquivalent: "")
-        lockKaraoke.state = isKaraokeLocked ? .on : .off
-        lockKaraoke.target = self
-        menu.addItem(lockKaraoke)
+        // Dynamically show lock based on active mode
+        if currentMode == .lyrics {
+             // Lock Lyrics
+            let title = isLyricsLocked ? "Unlock Lyrics View" : "Lock Lyrics View"
+            let lockItem = NSMenuItem(title: title, action: #selector(toggleLockLyrics), keyEquivalent: "")
+            lockItem.state = isLyricsLocked ? .on : .off
+            lockItem.target = self
+            lockItem.isEnabled = isWindowVisible
+            menu.addItem(lockItem)
+        } else {
+             // Lock Aura
+            let title = isAuraLocked ? "Unlock Aura Mode" : "Lock Aura Mode"
+             let lockItem = NSMenuItem(title: title, action: #selector(toggleLockAura), keyEquivalent: "")
+            lockItem.state = isAuraLocked ? .on : .off
+            lockItem.target = self
+            lockItem.isEnabled = isWindowVisible
+            menu.addItem(lockItem)
+        }
         
         menu.addItem(NSMenuItem.separator())
         
@@ -84,31 +177,41 @@ class MenuBarManager: NSObject {
     
     // MARK: - Actions
     
-    @objc func toggleList() {
-        isListWindowVisible.toggle()
-        windowManager?.toggleListWindow(visible: isListWindowVisible)
+    @objc private func showCurrentWindowAction() {
+        showCurrentWindow()
+    }
+    
+    @objc private func hideWindowsAction() {
+        hideWindows()
+    }
+    
+    @objc private func switchToLyricsAction() {
+        switchToLyricsMode()
+    }
+    
+    @objc private func switchToAuraAction() {
+        switchToAuraMode()
+    }
+    
+    @objc private func toggleLockLyrics() {
+        isLyricsLocked.toggle()
+        windowManager?.setLyricsWindowClickThrough(enabled: isLyricsLocked)
         updateMenu()
     }
     
-    @objc func toggleKaraoke() {
-        isKaraokeWindowVisible.toggle()
-        windowManager?.toggleKaraokeWindow(visible: isKaraokeWindowVisible)
-        updateMenu()
-    }
-    
-    @objc private func toggleLockList() {
-        isListLocked.toggle()
-        windowManager?.setListWindowClickThrough(enabled: isListLocked)
-        updateMenu()
-    }
-    
-    @objc private func toggleLockKaraoke() {
-        isKaraokeLocked.toggle()
-        windowManager?.setKaraokeWindowClickThrough(enabled: isKaraokeLocked)
+    @objc private func toggleLockAura() {
+        isAuraLocked.toggle()
+        windowManager?.setAuraWindowClickThrough(enabled: isAuraLocked)
         updateMenu()
     }
     
     @objc private func quitApp() {
         NSApp.terminate(nil)
+    }
+    
+    @objc private func changeTheme(_ sender: NSMenuItem) {
+        guard let theme = sender.representedObject as? AppTheme else { return }
+        ThemeManager.shared.setTheme(theme)
+        updateMenu()
     }
 }

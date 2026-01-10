@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct KaraokeView: View {
+struct AuraView: View {
     @ObservedObject var lyricsManager = LyricsManager.shared
     @ObservedObject var spotifyService = SpotifyService.shared
     
@@ -90,6 +90,14 @@ struct KaraokeView: View {
                                 .foregroundStyle(.white.opacity(0.7))
                                 .lineLimit(1)
                                 .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
+                            
+                            if !lyricsManager.lyrics.isEmpty && !lyricsManager.isSynced {
+                                Text("Lyrics not synced")
+                                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                                    .textCase(.uppercase)
+                                    .foregroundStyle(.white.opacity(0.4))
+                                    .padding(.top, 4)
+                            }
                         }
                         .transition(.opacity)
                     } else {

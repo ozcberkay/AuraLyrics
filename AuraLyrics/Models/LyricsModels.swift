@@ -4,6 +4,7 @@ struct LyricsLine: Identifiable, Equatable {
     let id = UUID()
     let startTime: TimeInterval
     let text: String
+    let isSynced: Bool
 }
 
 struct LRCLibResponse: Codable {

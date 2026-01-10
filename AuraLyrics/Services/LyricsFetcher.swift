@@ -49,9 +49,11 @@ class LyricsFetcher {
             if let syncedLyrics = libResponse.syncedLyrics {
                 return LRCParser.parse(lrcContent: syncedLyrics)
             } else if let plainLyrics = libResponse.plainLyrics {
-                // If only plain lyrics are available, we can't sync but maybe show them?
-                // For now, return as a single line at 0s or empty.
-                return [LyricsLine(startTime: 0, text: plainLyrics)]
+                // Split plain lyrics into lines to avoid truncation in UI
+                return plainLyrics.components(separatedBy: .newlines)
+                    .map { $0.trimmingCharacters(in: .whitespaces) }
+                    .filter { !$0.isEmpty }
+                    .map { LyricsLine(startTime: 0, text: $0, isSynced: false) }
             } else {
                 return []
             }

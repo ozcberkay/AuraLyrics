@@ -24,7 +24,7 @@ struct LRCParser {
                    let hundredths = Double(hundredthsStr) {
                     
                     let startTime = (minutes * 60.0) + seconds + (hundredths / 100.0)
-                    lines.append(LyricsLine(startTime: startTime, text: text))
+                    lines.append(LyricsLine(startTime: startTime, text: text, isSynced: true))
                 }
             }
         }

@@ -9,6 +9,10 @@ class LyricsManager: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var error: String? = nil
     
+    var isSynced: Bool {
+        lyrics.first?.isSynced ?? false
+    }
+    
     // Sync properties
     @Published var currentPosition: TimeInterval = 0
     @Published var activeLineID: UUID? = nil
@@ -50,7 +54,12 @@ class LyricsManager: ObservableObject {
     }
     
     private func updateActiveLine() {
-        guard !lyrics.isEmpty else { return }
+        guard !lyrics.isEmpty, isSynced else {
+            if activeLineID != nil {
+                self.activeLineID = nil
+            }
+            return
+        }
         
         // Find the line where startTime <= currentPosition
         // Since lyrics are sorted, we can find the last one that matches
