@@ -143,7 +143,24 @@ class MenuBarManager: NSObject {
             themeMenu.addItem(item)
         }
         
+        // --- Aura Size ---
+        let sizeMenu = NSMenu()
+        let sizeItem = NSMenuItem(title: "Aura Size", action: nil, keyEquivalent: "")
+        sizeItem.submenu = sizeMenu
+        // Only enable when in Aura mode
+        sizeItem.isEnabled = (currentMode == .aura)
+        menu.addItem(sizeItem)
+        
+        for size in AuraSize.allCases {
+            let item = NSMenuItem(title: size.displayName, action: #selector(changeAuraSize(_:)), keyEquivalent: "")
+            item.target = self
+            item.state = (AuraSizeManager.shared.currentSize == size) ? .on : .off
+            item.representedObject = size
+            sizeMenu.addItem(item)
+        }
+        
         menu.addItem(NSMenuItem.separator())
+
         
         // --- Locking ---
         // Dynamically show lock based on active mode
@@ -166,6 +183,8 @@ class MenuBarManager: NSObject {
         }
         
         menu.addItem(NSMenuItem.separator())
+        
+
         
         // --- Quit ---
         let quitItem = NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "q")
@@ -205,6 +224,8 @@ class MenuBarManager: NSObject {
         updateMenu()
     }
     
+
+
     @objc private func quitApp() {
         NSApp.terminate(nil)
     }
@@ -212,6 +233,12 @@ class MenuBarManager: NSObject {
     @objc private func changeTheme(_ sender: NSMenuItem) {
         guard let theme = sender.representedObject as? AppTheme else { return }
         ThemeManager.shared.setTheme(theme)
+        updateMenu()
+    }
+    
+    @objc private func changeAuraSize(_ sender: NSMenuItem) {
+        guard let size = sender.representedObject as? AuraSize else { return }
+        AuraSizeManager.shared.setSize(size)
         updateMenu()
     }
 }

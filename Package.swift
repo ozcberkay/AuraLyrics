@@ -9,6 +9,7 @@ let package = Package(
     products: [
         .executable(name: "AuraLyrics", targets: ["AuraLyrics"])
     ],
+    dependencies: [],
     targets: [
         .executableTarget(
             name: "AuraLyrics",

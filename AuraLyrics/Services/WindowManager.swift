@@ -5,6 +5,8 @@ class WindowManager: NSObject, NSApplicationDelegate {
     var listPanel: FloatingPanel?
     var auraPanel: FloatingPanel?
     
+    private var sizeObserver: Any?
+    
     func applicationDidFinishLaunching(_ notification: Notification) {
         // --- Setup List Window (Lyrics View) ---
         let listP = FloatingPanel(
@@ -17,9 +19,15 @@ class WindowManager: NSObject, NSApplicationDelegate {
         self.listPanel = listP
         
         // --- Setup Aura Window ---
-        // Hidden by default
+        // Get initial size from AuraSizeManager
+        let initialSize = AuraSizeManager.shared.currentSize
         let auraP = FloatingPanel(
-            contentRect: NSRect(x: 100, y: 100, width: 600, height: 160),
+            contentRect: NSRect(
+                x: 100,
+                y: 100,
+                width: initialSize.windowWidth,
+                height: initialSize.windowHeight
+            ),
             backing: .buffered,
             defer: false
         )
@@ -27,11 +35,53 @@ class WindowManager: NSObject, NSApplicationDelegate {
         // auraP.makeKeyAndOrderFront(nil) // Start hidden
         self.auraPanel = auraP
         
+        // --- Observe Aura Size Changes ---
+        sizeObserver = NotificationCenter.default.addObserver(
+            forName: .auraSizeDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let newSize = notification.object as? AuraSize else { return }
+            self?.resizeAuraPanel(to: newSize)
+        }
+        
         // --- Setup Menu Bar ---
         MenuBarManager.shared.setup(windowManager: self)
         
         // Ensure the app doesn't close when all windows are hidden (though this is a panel)
         NSApp.setActivationPolicy(.accessory)
+    }
+    
+    deinit {
+        if let observer = sizeObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+    
+    // MARK: - Aura Size Management
+    
+    private func resizeAuraPanel(to size: AuraSize) {
+        guard let panel = auraPanel else { return }
+        
+        // Get current frame to preserve position (centered resize)
+        let currentFrame = panel.frame
+        let currentCenterX = currentFrame.midX
+        let currentCenterY = currentFrame.midY
+        
+        // Calculate new frame
+        let newWidth = size.windowWidth
+        let newHeight = size.windowHeight
+        let newX = currentCenterX - (newWidth / 2)
+        let newY = currentCenterY - (newHeight / 2)
+        
+        let newFrame = NSRect(x: newX, y: newY, width: newWidth, height: newHeight)
+        
+        // Animate the resize
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.3
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            panel.animator().setFrame(newFrame, display: true)
+        }
     }
     
     // MARK: - Window Control
@@ -60,3 +110,4 @@ class WindowManager: NSObject, NSApplicationDelegate {
         auraPanel?.setClickThrough(enabled)
     }
 }
+
