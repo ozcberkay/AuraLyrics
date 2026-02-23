@@ -11,7 +11,9 @@ class LyricsFetcher {
     private let baseURL = "https://lrclib.net/api/get"
     
     func fetchLyrics(track: String, artist: String, album: String, duration: Double) async throws -> [LyricsLine] {
-        var urlComponents = URLComponents(string: baseURL)!
+        guard var urlComponents = URLComponents(string: baseURL) else {
+            throw LyricsError.invalidURL
+        }
         urlComponents.queryItems = [
             URLQueryItem(name: "track_name", value: track),
             URLQueryItem(name: "artist_name", value: artist),

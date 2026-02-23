@@ -109,16 +109,16 @@ class LyricsManager: ObservableObject {
                     self.isLoading = false
                     print("[LyricsManager] Fetched \(fetchedLyrics.count) lines for \(state.track)")
                 }
-            } catch {
+            } catch let fetchError {
                 await MainActor.run {
                     self.isLoading = false
-                    if let lyricsError = error as? LyricsError, lyricsError == .notFound {
+                    if let lyricsError = fetchError as? LyricsError, lyricsError == .notFound {
                         self.error = "Lyrics not found"
                     } else {
                         self.error = "Failed to fetch lyrics"
                     }
                     self.lyrics = []
-                    print("[LyricsManager] Error fetching lyrics: \(error)")
+                    print("[LyricsManager] Error fetching lyrics: \(fetchError)")
                 }
             }
         }

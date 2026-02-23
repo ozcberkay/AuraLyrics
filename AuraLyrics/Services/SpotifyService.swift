@@ -190,14 +190,13 @@ class SpotifyService: ObservableObject {
     
     private func fetchArtwork(url: String) {
         guard let validUrl = URL(string: url) else { return }
-        
-        DispatchQueue.global(qos: .background).async {
-            if let data = try? Data(contentsOf: validUrl), let image = NSImage(data: data) {
-                DispatchQueue.main.async {
-                    self.artworkImage = image
-                }
+
+        URLSession.shared.dataTask(with: validUrl) { [weak self] data, _, _ in
+            guard let data, let image = NSImage(data: data) else { return }
+            DispatchQueue.main.async {
+                self?.artworkImage = image
             }
-        }
+        }.resume()
     }
     
     deinit {

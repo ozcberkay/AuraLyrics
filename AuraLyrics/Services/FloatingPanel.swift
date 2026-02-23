@@ -30,8 +30,10 @@ class FloatingPanel: NSPanel {
     
     func setClickThrough(_ enabled: Bool) {
         self.ignoresMouseEvents = enabled
-        
-        // Visual feedback (optional): dim slightly when locked?
-        self.alphaValue = enabled ? 0.8 : 1.0
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.2
+            self.animator().alphaValue = enabled ? 0.8 : 1.0
+        }
     }
 }

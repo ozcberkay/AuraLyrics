@@ -1,179 +1,114 @@
 import SwiftUI
 import Combine
 
-/// Represents the 5 size presets for Aura Mode
+/// Represents the 5 size presets for Aura Mode.
+///
+/// All dimensional properties are derived from `scaleFactor` and the medium
+/// baseline values, eliminating the repetitive per-case switch statements.
 enum AuraSize: String, CaseIterable, Identifiable {
     case compact = "Compact"
     case small = "Small"
     case medium = "Medium"
     case large = "Large"
     case extraLarge = "Extra Large"
-    
-    var id: String { self.rawValue }
-    
-    /// Display name with visual indicator
+
+    var id: String { rawValue }
+
     var displayName: String {
         switch self {
-        case .compact: return "ᴬᵃ Compact"
-        case .small: return "Aᵃ Small"
-        case .medium: return "Aa Medium"
-        case .large: return "Aa Large"
+        case .compact:    return "\u{1D2C}\u{1D43} Compact"
+        case .small:      return "A\u{1D43} Small"
+        case .medium:     return "Aa Medium"
+        case .large:      return "Aa Large"
         case .extraLarge: return "AA Extra Large"
         }
     }
-    
+
     /// Scale factor relative to medium (1.0)
     var scaleFactor: CGFloat {
         switch self {
-        case .compact: return 0.6
-        case .small: return 0.8
-        case .medium: return 1.0
-        case .large: return 1.2
+        case .compact:    return 0.6
+        case .small:      return 0.8
+        case .medium:     return 1.0
+        case .large:      return 1.2
         case .extraLarge: return 1.4
         }
     }
-    
+
+    // MARK: - Derived dimensions (base value x scaleFactor)
+
     /// Window width for Aura panel
-    var windowWidth: CGFloat {
-        switch self {
-        case .compact: return 360
-        case .small: return 450
-        case .medium: return 500
-        case .large: return 600
-        case .extraLarge: return 720
-        }
-    }
-    
+    var windowWidth: CGFloat { round(500 * scaleFactor) }
+
     /// Window height for Aura panel
-    var windowHeight: CGFloat {
-        switch self {
-        case .compact: return 96
-        case .small: return 120
-        case .medium: return 134
-        case .large: return 160
-        case .extraLarge: return 192
-        }
-    }
-    
+    var windowHeight: CGFloat { round(134 * scaleFactor) }
+
     /// Main/active line font size
-    var activeFontSize: CGFloat {
-        switch self {
-        case .compact: return 19
-        case .small: return 24
-        case .medium: return 27
-        case .large: return 32
-        case .extraLarge: return 38
-        }
-    }
-    
+    var activeFontSize: CGFloat { round(27 * scaleFactor) }
+
     /// Previous/next line font size
-    var inactiveFontSize: CGFloat {
-        switch self {
-        case .compact: return 12
-        case .small: return 15
-        case .medium: return 17
-        case .large: return 20
-        case .extraLarge: return 24
-        }
-    }
-    
+    var inactiveFontSize: CGFloat { round(17 * scaleFactor) }
+
     /// Minimum height for inactive lines
-    var inactiveLineHeight: CGFloat {
-        switch self {
-        case .compact: return 18
-        case .small: return 22
-        case .medium: return 26
-        case .large: return 30
-        case .extraLarge: return 36
-        }
-    }
-    
+    var inactiveLineHeight: CGFloat { round(26 * scaleFactor) }
+
     /// Minimum height for active line
-    var activeLineHeight: CGFloat {
-        switch self {
-        case .compact: return 30
-        case .small: return 38
-        case .medium: return 44
-        case .large: return 50
-        case .extraLarge: return 60
-        }
-    }
-    
+    var activeLineHeight: CGFloat { round(44 * scaleFactor) }
+
     /// Info mode track title font size
-    var trackTitleFontSize: CGFloat {
-        switch self {
-        case .compact: return 14
-        case .small: return 18
-        case .medium: return 21
-        case .large: return 24
-        case .extraLarge: return 29
-        }
-    }
-    
+    var trackTitleFontSize: CGFloat { round(21 * scaleFactor) }
+
     /// Info mode artist font size
-    var artistFontSize: CGFloat {
-        switch self {
-        case .compact: return 10
-        case .small: return 12
-        case .medium: return 14
-        case .large: return 16
-        case .extraLarge: return 19
-        }
-    }
-    
+    var artistFontSize: CGFloat { round(14 * scaleFactor) }
+
     /// Error/status message font size
-    var statusFontSize: CGFloat {
-        switch self {
-        case .compact: return 6
-        case .small: return 8
-        case .medium: return 9
-        case .large: return 10
-        case .extraLarge: return 12
-        }
-    }
-    
+    var statusFontSize: CGFloat { max(6, round(9 * scaleFactor)) }
+
     /// Waiting message font size
-    var waitingFontSize: CGFloat {
-        switch self {
-        case .compact: return 10
-        case .small: return 12
-        case .medium: return 14
-        case .large: return 16
-        case .extraLarge: return 19
-        }
-    }
+    var waitingFontSize: CGFloat { round(14 * scaleFactor) }
 }
+
+// MARK: - AuraSizeManager
 
 class AuraSizeManager: ObservableObject {
     static let shared = AuraSizeManager()
-    
+
     private let sizeKey = "AuraSize"
-    
+
     @Published var currentSize: AuraSize {
         didSet {
             UserDefaults.standard.set(currentSize.rawValue, forKey: sizeKey)
             NotificationCenter.default.post(name: .auraSizeDidChange, object: currentSize)
         }
     }
-    
+
     private init() {
-        if let savedSize = UserDefaults.standard.string(forKey: sizeKey),
-           let size = AuraSize(rawValue: savedSize) {
+        if let saved = UserDefaults.standard.string(forKey: sizeKey),
+           let size = AuraSize(rawValue: saved) {
             self.currentSize = size
         } else {
-            // Default to Medium (Kademe 3)
             self.currentSize = .medium
         }
     }
-    
+
     func setSize(_ size: AuraSize) {
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+        guard size != currentSize else { return }
+
+        // Do NOT wrap in withAnimation — SwiftUI views already declare
+        // `.animation(.spring(...), value: currentSize)` so they animate
+        // automatically.  The previous withAnimation call raced against the
+        // AppKit NSAnimationContext in WindowManager.resizeAuraPanel, which
+        // caused crashes on rapid size changes.
+        if Thread.isMainThread {
             self.currentSize = size
+        } else {
+            DispatchQueue.main.async { self.currentSize = size }
         }
     }
 }
 
-// Notification for size changes
+// MARK: - Notification
+
 extension Notification.Name {
     static let auraSizeDidChange = Notification.Name("auraSizeDidChange")
 }
