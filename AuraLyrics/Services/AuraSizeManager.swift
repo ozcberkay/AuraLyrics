@@ -144,6 +144,7 @@ enum AuraSize: String, CaseIterable, Identifiable {
     }
 }
 
+@MainActor
 class AuraSizeManager: ObservableObject {
     static let shared = AuraSizeManager()
     

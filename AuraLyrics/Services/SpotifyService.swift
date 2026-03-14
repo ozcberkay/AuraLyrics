@@ -3,6 +3,7 @@ import Combine
 import AppKit
 
 /// A service responsible for observing and querying Spotify.
+@MainActor
 class SpotifyService: ObservableObject {
     
     static let shared = SpotifyService()
@@ -86,9 +87,9 @@ class SpotifyService: ObservableObject {
         var error: NSDictionary?
         NSAppleScript(source: source)?.executeAndReturnError(&error)
         
-        // Optimistic update? Or just wait for 2s poll?
-        // Let's force a fetch immediately after a small delay to update UI
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        // Force a fetch after a small delay to update UI
+        Task {
+            try? await Task.sleep(nanoseconds: 100_000_000)
             self.fetchSpotifyState()
         }
     }
@@ -113,11 +114,9 @@ class SpotifyService: ObservableObject {
         }
         
         if stringResult == "NOT_RUNNING" {
-            DispatchQueue.main.async {
-                if self.currentState != .notRunning {
-                    self.currentState = .notRunning
-                    self.artworkImage = nil
-                }
+            if self.currentState != .notRunning {
+                self.currentState = .notRunning
+                self.artworkImage = nil
             }
             return
         }
@@ -181,19 +180,17 @@ class SpotifyService: ObservableObject {
             timestamp: Date()
         )
         
-        DispatchQueue.main.async {
-            if self.currentState != newState {
-                self.currentState = newState
-            }
+        if self.currentState != newState {
+            self.currentState = newState
         }
     }
-    
+
     private func fetchArtwork(url: String) {
         guard let validUrl = URL(string: url) else { return }
-        
-        DispatchQueue.global(qos: .background).async {
+
+        Task.detached(priority: .background) {
             if let data = try? Data(contentsOf: validUrl), let image = NSImage(data: data) {
-                DispatchQueue.main.async {
+                await MainActor.run {
                     self.artworkImage = image
                 }
             }

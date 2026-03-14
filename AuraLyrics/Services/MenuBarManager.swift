@@ -2,6 +2,7 @@ import AppKit
 import Combine
 import SwiftUI
 
+@MainActor
 class MenuBarManager: NSObject {
     static let shared = MenuBarManager()
     

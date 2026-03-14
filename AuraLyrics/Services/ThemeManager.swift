@@ -9,6 +9,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
     var id: String { self.rawValue }
 }
 
+@MainActor
 class ThemeManager: ObservableObject {
     static let shared = ThemeManager()
     

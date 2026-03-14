@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import SwiftUI
 
+@MainActor
 class LyricsManager: ObservableObject {
     static let shared = LyricsManager()
     
@@ -25,7 +26,6 @@ class LyricsManager: ObservableObject {
     
     private init() {
         SpotifyService.shared.$currentState
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] state in
                 self?.handleStateChange(state)
             }
@@ -103,23 +103,19 @@ class LyricsManager: ObservableObject {
                     album: state.album,
                     duration: state.duration
                 )
-                
-                await MainActor.run {
-                    self.lyrics = fetchedLyrics
-                    self.isLoading = false
-                    print("[LyricsManager] Fetched \(fetchedLyrics.count) lines for \(state.track)")
-                }
+
+                self.lyrics = fetchedLyrics
+                self.isLoading = false
+                print("[LyricsManager] Fetched \(fetchedLyrics.count) lines for \(state.track)")
             } catch {
-                await MainActor.run {
-                    self.isLoading = false
-                    if let lyricsError = error as? LyricsError, lyricsError == .notFound {
-                        self.error = "Lyrics not found"
-                    } else {
-                        self.error = "Failed to fetch lyrics"
-                    }
-                    self.lyrics = []
-                    print("[LyricsManager] Error fetching lyrics: \(error)")
+                self.isLoading = false
+                if let lyricsError = error as? LyricsError, lyricsError == .notFound {
+                    self.error = "Lyrics not found"
+                } else {
+                    self.error = "Failed to fetch lyrics"
                 }
+                self.lyrics = []
+                print("[LyricsManager] Error fetching lyrics: \(error)")
             }
         }
     }
