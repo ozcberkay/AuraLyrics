@@ -31,4 +31,28 @@ final class LyricsManagerTests: XCTestCase {
         XCTAssertTrue(source.contains("startTimerIfNeeded") && source.contains("lastState.isPlaying"),
                       "LyricsManager must restart timer after lyrics fetch if lastState.isPlaying")
     }
+
+    // ERRH-01 / ERRH-02: LyricsManager must use @Published var state: LyricsState (not lyrics+isLoading+error triple)
+    // and handle both .notFound and .instrumental error cases
+    func testLyricsManagerUsesLyricsState() throws {
+        let sourceURL = URL(fileURLWithPath: #file)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("AuraLyrics/Services/LyricsManager.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("@Published var state: LyricsState"),
+            "ERRH-01: LyricsManager must use @Published var state: LyricsState"
+        )
+        XCTAssertTrue(
+            source.contains("case .notFound"),
+            "ERRH-01: LyricsManager fetchLyrics must catch LyricsError.notFound and set .notFound state"
+        )
+        XCTAssertTrue(
+            source.contains("case .instrumental"),
+            "ERRH-02: LyricsManager fetchLyrics must catch LyricsError.instrumental and set .instrumental state"
+        )
+    }
 }

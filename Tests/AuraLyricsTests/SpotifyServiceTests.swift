@@ -68,4 +68,22 @@ final class SpotifyServiceTests: XCTestCase {
         XCTAssertTrue(source.contains("Task.isCancelled"),
                       "fetchArtwork must check Task.isCancelled after await to prevent stale writes")
     }
+
+    // ERRH-03: consecutiveAppleScriptFailures counter and isDegraded published flag
+    func testAppleScriptHealthMonitor() throws {
+        let sourceURL = URL(fileURLWithPath: #file)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("AuraLyrics/Services/SpotifyService.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        XCTAssertTrue(
+            source.contains("consecutiveAppleScriptFailures"),
+            "ERRH-03: SpotifyService must track consecutiveAppleScriptFailures counter"
+        )
+        XCTAssertTrue(
+            source.contains("isDegraded"),
+            "ERRH-03: SpotifyService must publish isDegraded: Bool flag"
+        )
+    }
 }
