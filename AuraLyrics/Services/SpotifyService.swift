@@ -5,18 +5,28 @@ import AppKit
 /// A service responsible for observing and querying Spotify.
 @MainActor
 class SpotifyService: ObservableObject {
-    
+
     static let shared = SpotifyService()
-    
+
     @Published var currentState: PlaybackState = .empty
-    @Published var artworkImage: NSImage? = nil 
-    
+    @Published var artworkImage: NSImage? = nil
+
     private var cancellables = Set<AnyCancellable>()
     private var pollTimer: AnyCancellable?
-    
+
+    // NETW-03: stored task reference — cancelled before starting a new fetch
+    private var artworkTask: Task<Void, Never>?
+
+    // THRD-02: All AppleScript execution runs on this serial queue — never main thread
+    // Serial (not concurrent) by default — NSAppleScript is not thread-safe
+    private let appleScriptQueue = DispatchQueue(
+        label: "com.auralyrics.applescript",
+        qos: .userInitiated
+    )
+
     // Distributed Notification specifically for Spotify
     private let spotifyNotificationName = Notification.Name("com.spotify.client.PlaybackStateChanged")
-    
+
     // Embedded AppleScript to ensure it works without external resources
     // Fetches: Name, Artist, Album, Duration, Position, State, ArtworkURL
     private let pollScriptSource: String = """
@@ -31,7 +41,7 @@ class SpotifyService: ObservableObject {
                 set tArtwork to artwork url of t
                 set pState to player state
                 set pPosition to player position
-                
+
                 return tName & "|||" & tArtist & "|||" & tAlbum & "|||" & tDuration & "|||" & pPosition & "|||" & pState & "|||" & tArtwork
             on error
                 return "ERROR"
@@ -41,14 +51,28 @@ class SpotifyService: ObservableObject {
         end if
     end tell
     """
-    
+
+    // THRD-03: Compiled once on first use. lazy var init runs on @MainActor (XProtect-safe).
+    // Subsequent executeAndReturnError calls skip recompilation.
+    private lazy var pollScript: NSAppleScript? = {
+        let script = NSAppleScript(source: pollScriptSource)
+        var compileError: NSDictionary?
+        // Explicit compile — surfacing errors early rather than silently at runtime
+        script?.compileAndReturnError(&compileError)
+        if compileError != nil {
+            print("[SpotifyService] Failed to compile AppleScript: \(compileError!)")
+            return nil
+        }
+        return script
+    }()
+
     private init() {
         setupObservers()
         startPolling()
         // Initial fetch
         fetchSpotifyState()
     }
-    
+
     private func setupObservers() {
         print("[SpotifyService] Setting up observer for: \(spotifyNotificationName.rawValue)")
         DistributedNotificationCenter.default().addObserver(
@@ -58,7 +82,7 @@ class SpotifyService: ObservableObject {
             object: nil
         )
     }
-    
+
     private func startPolling() {
         guard pollTimer == nil else { return }
         // Poll every 2 seconds to catch seeking/drifting that doesn't trigger a notification
@@ -73,96 +97,104 @@ class SpotifyService: ObservableObject {
         pollTimer?.cancel()
         pollTimer = nil
     }
-    
+
     @objc private func playbackStateChanged(_ notification: Notification) {
         // Always fetch full state to ensure we get artwork and correct sync
         fetchSpotifyState()
     }
-    
+
     func nextTrack() {
         runSpotifyCommand("next track")
     }
-    
+
     func previousTrack() {
         runSpotifyCommand("previous track")
     }
-    
+
     func playPause() {
         runSpotifyCommand("playpause")
     }
-    
+
     private func runSpotifyCommand(_ command: String) {
         let source = "tell application \"Spotify\" to \(command)"
-        var error: NSDictionary?
-        NSAppleScript(source: source)?.executeAndReturnError(&error)
-        
-        // Force a fetch after a small delay to update UI
-        Task {
-            try? await Task.sleep(nanoseconds: 100_000_000)
-            self.fetchSpotifyState()
+
+        appleScriptQueue.async { [weak self] in
+            let commandScript = NSAppleScript(source: source)
+            var error: NSDictionary?
+            commandScript?.executeAndReturnError(&error)
+
+            // Fetch updated state after a brief delay for Spotify to process the command
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 100_000_000)  // 0.1s
+                self?.fetchSpotifyState()
+            }
         }
     }
-    
+
     /// Executes the AppleScript to get the current state
     func fetchSpotifyState() {
-        var errorDict: NSDictionary?
-        // Use the embedded source
-        guard let script = NSAppleScript(source: pollScriptSource) else {
-            print("[SpotifyService] Failed to init AppleScript")
-            return
+        // THRD-03: reuse compiled instance — lazy init runs on @MainActor on first call
+        guard let script = pollScript else { return }
+
+        // THRD-02: dispatch execution to serial background queue — never blocks main thread
+        appleScriptQueue.async { [weak self] in
+            var errorDict: NSDictionary?
+            let descriptor = script.executeAndReturnError(&errorDict)
+
+            guard errorDict == nil, let stringResult = descriptor.stringValue else { return }
+
+            // Dispatch result handling back to main actor
+            Task { @MainActor [weak self] in
+                self?.handleAppleScriptResult(stringResult)
+            }
         }
-        
-        let descriptor = script.executeAndReturnError(&errorDict)
-        
-        if errorDict != nil {
-            return
-        }
-        
-        guard let stringResult = descriptor.stringValue else {
-            return
-        }
-        
-        if stringResult == "NOT_RUNNING" {
-            if self.currentState != .notRunning {
-                self.currentState = .notRunning
-                self.artworkImage = nil
+    }
+
+    // @MainActor is inherited from the class — no annotation needed on the method
+    private func handleAppleScriptResult(_ result: String) {
+        if result == "NOT_RUNNING" {
+            stopPolling()   // TIMR-03: pause polling when Spotify is not running
+            if currentState != .notRunning {
+                currentState = .notRunning
+                artworkImage = nil
             }
             return
         }
-        
-        if stringResult.starts(with: "ERROR") {
-            return
-        }
-        
-        parseResult(stringResult)
+
+        if result.starts(with: "ERROR") { return }
+
+        // TIMR-03: resume polling if it was paused (pollTimer == nil after stopPolling)
+        startPolling()
+
+        parseResult(result)
     }
-    
+
     private func parseResult(_ input: String) {
         // Format: Name|||Artist|||Album|||Duration(s)|||Position(s)|||State(playing/paused)|||ArtworkUrl
-        
+
         let parts = input.components(separatedBy: "|||")
-        
+
         guard parts.count >= 7 else {
             print("[SpotifyService] Parse Error: Unexpected format -> \(input)")
             return
         }
-        
+
         let artworkUrl = parts[6]
-        
+
         // Check if artwork URL changed, then fetch
         if artworkUrl != currentState.artworkUrl && !artworkUrl.isEmpty {
            fetchArtwork(url: artworkUrl)
         }
-        
+
         let track = parts[0]
         let artist = parts[1]
         let album = parts[2]
         let durationString = parts[3].replacingOccurrences(of: ",", with: ".")
         let positionString = parts[4].replacingOccurrences(of: ",", with: ".")
-        
+
         var duration = Double(durationString) ?? 0.0
         var position = Double(positionString) ?? 0.0
-        
+
         // Normalize milliseconds to seconds
         if duration > 10000 {
             duration /= 1000
@@ -172,11 +204,11 @@ class SpotifyService: ObservableObject {
         } else if position > duration * 1000 {
              position /= 1000
         }
-        
+
         let stateString = parts[5]
-        
+
         let isPlaying = (stateString == "playing")
-        
+
         let newState = PlaybackState(
             track: track,
             artist: artist,
@@ -188,24 +220,43 @@ class SpotifyService: ObservableObject {
             isSpotifyRunning: true, // If we got here, it's running
             timestamp: Date()
         )
-        
+
         if self.currentState != newState {
             self.currentState = newState
         }
     }
 
     private func fetchArtwork(url: String) {
+        // NETW-03: cancel any in-flight fetch before starting a new one (prevents task stacking)
+        artworkTask?.cancel()
+        artworkTask = nil
+
         guard let validUrl = URL(string: url) else { return }
 
-        Task.detached(priority: .background) {
-            if let data = try? Data(contentsOf: validUrl), let image = NSImage(data: data) {
-                await MainActor.run {
+        artworkTask = Task {
+            do {
+                var request = URLRequest(url: validUrl)
+                request.timeoutInterval = 10  // NETW-01: 10-second timeout (Phase 2 adds retry)
+
+                let (data, response) = try await URLSession.shared.data(for: request)
+
+                // NETW-03: check cancellation after network round-trip completes
+                guard !Task.isCancelled else { return }
+
+                guard let httpResponse = response as? HTTPURLResponse,
+                      httpResponse.statusCode == 200 else { return }
+
+                if let image = NSImage(data: data) {
+                    // @MainActor inherited from SpotifyService — direct assignment is safe
                     self.artworkImage = image
                 }
+            } catch {
+                // Artwork failure is non-critical — silent is acceptable for Phase 1
+                // Phase 4 will add structured os_log here
             }
         }
     }
-    
+
     deinit {
         DistributedNotificationCenter.default().removeObserver(self)
     }
