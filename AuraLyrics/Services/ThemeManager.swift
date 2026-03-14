@@ -15,12 +15,12 @@ class ThemeManager: ObservableObject {
     
     @Published var currentTheme: AppTheme {
         didSet {
-            UserDefaults.standard.set(currentTheme.rawValue, forKey: "AppTheme")
+            UserDefaults.standard.set(currentTheme.rawValue, forKey: AppDefaults.Key.appTheme.rawValue)
         }
     }
-    
+
     private init() {
-        if let savedTheme = UserDefaults.standard.string(forKey: "AppTheme"),
+        if let savedTheme = UserDefaults.standard.string(forKey: AppDefaults.Key.appTheme.rawValue),
            let theme = AppTheme(rawValue: savedTheme) {
             self.currentTheme = theme
         } else {

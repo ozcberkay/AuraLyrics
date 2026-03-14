@@ -16,7 +16,6 @@ class MenuBarManager: NSObject {
     }
     
     private(set) var currentMode: AppMode = .lyrics
-    private let modeKey = "AuraLyricsAppMode"
     
     // State to track locks (independent of mode)
     private var isLyricsLocked = false
@@ -29,7 +28,7 @@ class MenuBarManager: NSObject {
         self.windowManager = windowManager
         
         // Load saved mode
-        if let savedModeString = UserDefaults.standard.string(forKey: modeKey),
+        if let savedModeString = UserDefaults.standard.string(forKey: AppDefaults.Key.appMode.rawValue),
            let savedMode = AppMode(rawValue: savedModeString) {
             self.currentMode = savedMode
         } else {
@@ -59,7 +58,7 @@ class MenuBarManager: NSObject {
             windowManager?.toggleLyricsWindow(visible: false)
             windowManager?.toggleAuraWindow(visible: true)
         }
-        UserDefaults.standard.set(mode.rawValue, forKey: modeKey)
+        UserDefaults.standard.set(mode.rawValue, forKey: AppDefaults.Key.appMode.rawValue)
     }
     
     func hideWindows() {
