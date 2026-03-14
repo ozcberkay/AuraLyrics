@@ -2,17 +2,35 @@ import AppKit
 
 extension NSImage {
     /// Resizes the image to a small size to performance-efficiently extract colors.
-    func resized(to size: NSSize) -> NSImage? {
-        let img = NSImage(size: size)
-        img.lockFocus()
-        let ctx = NSGraphicsContext.current
-        ctx?.imageInterpolation = .high
-        self.draw(in: NSRect(origin: .zero, size: size),
-                  from: NSRect(origin: .zero, size: self.size),
-                  operation: .copy,
-                  fraction: 1.0)
-        img.unlockFocus()
-        return img
+    func resized(to targetSize: NSSize) -> NSImage? {
+        // UIPX-04: CGContext replaces deprecated lockFocus/unlockFocus (deprecated macOS 10.14)
+        // CGContext is thread-safe and Retina-correct; lockFocus requires main thread and AppKit context
+        guard let cgImage = self.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return nil
+        }
+
+        let width = Int(targetSize.width)
+        let height = Int(targetSize.height)
+        let bitsPerComponent = 8
+        let bytesPerRow = 4 * width
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue
+
+        guard let context = CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: bitsPerComponent,
+            bytesPerRow: bytesPerRow,
+            space: colorSpace,
+            bitmapInfo: bitmapInfo
+        ) else { return nil }
+
+        context.interpolationQuality = .high
+        context.draw(cgImage, in: CGRect(origin: .zero, size: targetSize))
+
+        guard let resizedCGImage = context.makeImage() else { return nil }
+        return NSImage(cgImage: resizedCGImage, size: targetSize)
     }
     
     /// Returns the average color of the image.
