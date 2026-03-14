@@ -18,6 +18,11 @@ let package = Package(
             resources: [
                 .process("Resources")
             ]
+        ),
+        .testTarget(
+            name: "AuraLyricsTests",
+            dependencies: [],
+            path: "Tests/AuraLyricsTests"
         )
     ]
 )
