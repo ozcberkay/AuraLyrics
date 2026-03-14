@@ -75,12 +75,10 @@ class SpotifyService: ObservableObject {
 
     private func setupObservers() {
         print("[SpotifyService] Setting up observer for: \(spotifyNotificationName.rawValue)")
-        DistributedNotificationCenter.default().addObserver(
-            self,
-            selector: #selector(playbackStateChanged),
-            name: spotifyNotificationName,
-            object: nil
-        )
+        DistributedNotificationCenter.default()
+            .publisher(for: spotifyNotificationName)
+            .sink { [weak self] _ in self?.fetchSpotifyState() }
+            .store(in: &cancellables)
     }
 
     private func startPolling() {
@@ -96,11 +94,6 @@ class SpotifyService: ObservableObject {
     private func stopPolling() {
         pollTimer?.cancel()
         pollTimer = nil
-    }
-
-    @objc private func playbackStateChanged(_ notification: Notification) {
-        // Always fetch full state to ensure we get artwork and correct sync
-        fetchSpotifyState()
     }
 
     func nextTrack() {
@@ -257,7 +250,4 @@ class SpotifyService: ObservableObject {
         }
     }
 
-    deinit {
-        DistributedNotificationCenter.default().removeObserver(self)
-    }
 }

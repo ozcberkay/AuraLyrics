@@ -1,11 +1,12 @@
 import AppKit
+import Combine
 import SwiftUI
 
 class WindowManager: NSObject, NSApplicationDelegate {
     var listPanel: FloatingPanel?
     var auraPanel: FloatingPanel?
-    
-    private var sizeObserver: Any?
+
+    private var cancellables = Set<AnyCancellable>()
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         // --- Setup List Window (Lyrics View) ---
@@ -35,27 +36,20 @@ class WindowManager: NSObject, NSApplicationDelegate {
         // auraP.makeKeyAndOrderFront(nil) // Start hidden
         self.auraPanel = auraP
         
-        // --- Observe Aura Size Changes ---
-        sizeObserver = NotificationCenter.default.addObserver(
-            forName: .auraSizeDidChange,
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
-            guard let newSize = notification.object as? AuraSize else { return }
-            self?.resizeAuraPanel(to: newSize)
-        }
+        // --- Observe Aura Size Changes via Combine ---
+        AuraSizeManager.shared.$currentSize
+            .dropFirst()  // skip initial emission — auraPanel already sized at creation above
+            .receive(on: RunLoop.main)
+            .sink { [weak self] newSize in
+                self?.resizeAuraPanel(to: newSize)
+            }
+            .store(in: &cancellables)
         
         // --- Setup Menu Bar ---
         MenuBarManager.shared.setup(windowManager: self)
         
         // Ensure the app doesn't close when all windows are hidden (though this is a panel)
         NSApp.setActivationPolicy(.accessory)
-    }
-    
-    deinit {
-        if let observer = sizeObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
     }
     
     // MARK: - Aura Size Management
