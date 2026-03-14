@@ -11,6 +11,11 @@ class SpotifyService: ObservableObject {
     @Published var currentState: PlaybackState = .empty
     @Published var artworkImage: NSImage? = nil
 
+    // ERRH-03: AppleScript health monitor
+    private var consecutiveAppleScriptFailures = 0
+    private let appleScriptFailureThreshold = 5
+    @Published var isDegraded: Bool = false
+
     private var cancellables = Set<AnyCancellable>()
     private var pollTimer: AnyCancellable?
 
@@ -134,7 +139,19 @@ class SpotifyService: ObservableObject {
             var errorDict: NSDictionary?
             let descriptor = script.executeAndReturnError(&errorDict)
 
-            guard errorDict == nil, let stringResult = descriptor.stringValue else { return }
+            // ERRH-03: accumulate consecutive failures; degrade after threshold
+            if errorDict != nil || descriptor.stringValue == nil {
+                self?.consecutiveAppleScriptFailures += 1
+                if let self = self,
+                   self.consecutiveAppleScriptFailures >= self.appleScriptFailureThreshold {
+                    Task { @MainActor [weak self] in
+                        self?.isDegraded = true
+                    }
+                }
+                return
+            }
+            self?.consecutiveAppleScriptFailures = 0  // reset on success
+            let stringResult = descriptor.stringValue!  // safe: checked above
 
             // Dispatch result handling back to main actor
             Task { @MainActor [weak self] in

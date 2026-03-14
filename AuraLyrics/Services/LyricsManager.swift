@@ -5,25 +5,27 @@ import SwiftUI
 @MainActor
 class LyricsManager: ObservableObject {
     static let shared = LyricsManager()
-    
-    @Published var lyrics: [LyricsLine] = []
-    @Published var isLoading: Bool = false
-    @Published var error: String? = nil
-    
+
+    // ERRH-01/02: single typed state replaces lyrics+isLoading+error triple
+    @Published var state: LyricsState = .idle
+
     var isSynced: Bool {
-        lyrics.first?.isSynced ?? false
+        if case .loaded(let lines) = state {
+            return lines.first?.isSynced ?? false
+        }
+        return false
     }
-    
+
     // Sync properties
     @Published var currentPosition: TimeInterval = 0
     @Published var activeLineID: UUID? = nil
-    
+
     private let fetcher = LyricsFetcher()
     private var cancellables = Set<AnyCancellable>()
     private var currentTrackID: String? = nil
     private var lastState: PlaybackState = .empty
     private var timer: AnyCancellable?
-    
+
     private init() {
         SpotifyService.shared.$currentState
             .sink { [weak self] state in
@@ -46,37 +48,34 @@ class LyricsManager: ObservableObject {
         timer?.cancel()
         timer = nil
     }
-    
+
     private func updatePosition() {
         guard lastState.isPlaying else { return }
-        
+
         // Interpolation logic:
         // currentPosition = spotifyPosition + (now - spotifyTimestamp)
         let timePassedSinceLastUpdate = Date().timeIntervalSince(lastState.timestamp)
         self.currentPosition = lastState.position + timePassedSinceLastUpdate
-        
+
         updateActiveLine()
     }
-    
+
     private func updateActiveLine() {
-        guard !lyrics.isEmpty, isSynced else {
-            if activeLineID != nil {
-                self.activeLineID = nil
-            }
+        guard case .loaded(let lines) = state, isSynced else {
+            if activeLineID != nil { self.activeLineID = nil }
             return
         }
-        
+
         // Find the line where startTime <= currentPosition
-        // Since lyrics are sorted, we can find the last one that matches
-        let matchingLine = lyrics.last { $0.startTime <= currentPosition }
-        
+        let matchingLine = lines.last { $0.startTime <= currentPosition }
+
         if activeLineID != matchingLine?.id {
             withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                 self.activeLineID = matchingLine?.id
             }
         }
     }
-    
+
     private func handleStateChange(_ state: PlaybackState) {
         self.lastState = state
         let trackID = "\(state.track)-\(state.artist)"
@@ -86,7 +85,7 @@ class LyricsManager: ObservableObject {
             currentTrackID = trackID
             fetchLyrics(for: state)
         } else if state.track.isEmpty {
-            lyrics = []
+            self.state = .idle   // was: lyrics = []; activeLineID = nil
             currentTrackID = nil
             activeLineID = nil
         }
@@ -95,43 +94,41 @@ class LyricsManager: ObservableObject {
         self.currentPosition = state.position
         updateActiveLine()
 
-        // TIMR-02: pause timer when not playing or no lyrics
-        if state.isPlaying && !lyrics.isEmpty {
+        // TIMR-02: pause timer when not playing or no lyrics loaded
+        if case .loaded(let lines) = self.state, state.isPlaying && !lines.isEmpty {
             startTimerIfNeeded()
         } else {
             stopTimer()
         }
     }
-    
-    private func fetchLyrics(for state: PlaybackState) {
-        isLoading = true
-        error = nil
-        
+
+    private func fetchLyrics(for playbackState: PlaybackState) {
+        self.state = .loading   // was: isLoading = true; error = nil
+
         Task {
             do {
                 let fetchedLyrics = try await fetcher.fetchLyrics(
-                    track: state.track,
-                    artist: state.artist,
-                    album: state.album,
-                    duration: state.duration
+                    track: playbackState.track,
+                    artist: playbackState.artist,
+                    album: playbackState.album,
+                    duration: playbackState.duration
                 )
+                self.state = .loaded(fetchedLyrics)   // was: self.lyrics = fetchedLyrics; self.isLoading = false
 
-                self.lyrics = fetchedLyrics
-                self.isLoading = false
-                print("[LyricsManager] Fetched \(fetchedLyrics.count) lines for \(state.track)")
                 // TIMR-02: restart timer if we were waiting for lyrics to arrive
-                if self.lastState.isPlaying && !fetchedLyrics.isEmpty {
+                if case .loaded(let lines) = self.state, self.lastState.isPlaying && !lines.isEmpty {
                     self.startTimerIfNeeded()
                 }
             } catch {
-                self.isLoading = false
-                if let lyricsError = error as? LyricsError, lyricsError == .notFound {
-                    self.error = "Lyrics not found"
-                } else {
-                    self.error = "Failed to fetch lyrics"
+                // ERRH-01/02: typed error dispatch → distinct LyricsState cases
+                switch error as? LyricsError {
+                case .notFound:
+                    self.state = .notFound(track: playbackState.track, artist: playbackState.artist)
+                case .instrumental:
+                    self.state = .instrumental(track: playbackState.track, artist: playbackState.artist)
+                default:
+                    self.state = .error("Failed to fetch lyrics")  // network/decode errors
                 }
-                self.lyrics = []
-                print("[LyricsManager] Error fetching lyrics: \(error)")
             }
         }
     }
