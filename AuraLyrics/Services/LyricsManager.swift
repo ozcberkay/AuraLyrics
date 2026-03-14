@@ -30,16 +30,21 @@ class LyricsManager: ObservableObject {
                 self?.handleStateChange(state)
             }
             .store(in: &cancellables)
-        
-        startTimer()
+        // Timer starts only when needed — see handleStateChange
     }
-    
-    private func startTimer() {
+
+    private func startTimerIfNeeded() {
+        guard timer == nil else { return }
         timer = Timer.publish(every: 0.1, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 self?.updatePosition()
             }
+    }
+
+    private func stopTimer() {
+        timer?.cancel()
+        timer = nil
     }
     
     private func updatePosition() {
@@ -75,7 +80,7 @@ class LyricsManager: ObservableObject {
     private func handleStateChange(_ state: PlaybackState) {
         self.lastState = state
         let trackID = "\(state.track)-\(state.artist)"
-        
+
         // Only fetch if track has changed and it's not empty
         if trackID != currentTrackID && !state.track.isEmpty {
             currentTrackID = trackID
@@ -85,10 +90,17 @@ class LyricsManager: ObservableObject {
             currentTrackID = nil
             activeLineID = nil
         }
-        
+
         // Immediately update position when state changes (e.g. seek)
         self.currentPosition = state.position
         updateActiveLine()
+
+        // TIMR-02: pause timer when not playing or no lyrics
+        if state.isPlaying && !lyrics.isEmpty {
+            startTimerIfNeeded()
+        } else {
+            stopTimer()
+        }
     }
     
     private func fetchLyrics(for state: PlaybackState) {
@@ -107,6 +119,10 @@ class LyricsManager: ObservableObject {
                 self.lyrics = fetchedLyrics
                 self.isLoading = false
                 print("[LyricsManager] Fetched \(fetchedLyrics.count) lines for \(state.track)")
+                // TIMR-02: restart timer if we were waiting for lyrics to arrive
+                if self.lastState.isPlaying && !fetchedLyrics.isEmpty {
+                    self.startTimerIfNeeded()
+                }
             } catch {
                 self.isLoading = false
                 if let lyricsError = error as? LyricsError, lyricsError == .notFound {

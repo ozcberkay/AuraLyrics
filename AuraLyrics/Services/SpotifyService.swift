@@ -12,6 +12,7 @@ class SpotifyService: ObservableObject {
     @Published var artworkImage: NSImage? = nil 
     
     private var cancellables = Set<AnyCancellable>()
+    private var pollTimer: AnyCancellable?
     
     // Distributed Notification specifically for Spotify
     private let spotifyNotificationName = Notification.Name("com.spotify.client.PlaybackStateChanged")
@@ -59,10 +60,18 @@ class SpotifyService: ObservableObject {
     }
     
     private func startPolling() {
+        guard pollTimer == nil else { return }
         // Poll every 2 seconds to catch seeking/drifting that doesn't trigger a notification
-        Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
-            self?.fetchSpotifyState()
-        }
+        pollTimer = Timer.publish(every: 2.0, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                self?.fetchSpotifyState()
+            }
+    }
+
+    private func stopPolling() {
+        pollTimer?.cancel()
+        pollTimer = nil
     }
     
     @objc private func playbackStateChanged(_ notification: Notification) {
