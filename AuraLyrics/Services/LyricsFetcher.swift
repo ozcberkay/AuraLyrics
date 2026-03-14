@@ -47,7 +47,11 @@ class LyricsFetcher {
         do {
             let libResponse = try decoder.decode(LRCLibResponse.self, from: data)
             if let syncedLyrics = libResponse.syncedLyrics {
-                return LRCParser.parse(lrcContent: syncedLyrics)
+                let parseResult = LRCParser.parse(lrcContent: syncedLyrics)
+                switch parseResult {
+                case .success(let parsedLines): return parsedLines
+                case .failure: throw LyricsError.decodeError
+                }
             } else if let plainLyrics = libResponse.plainLyrics {
                 // Split plain lyrics into lines to avoid truncation in UI
                 return plainLyrics.components(separatedBy: .newlines)
