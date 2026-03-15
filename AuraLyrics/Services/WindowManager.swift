@@ -99,6 +99,17 @@ class WindowManager: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
 
+    func windowDidResize(_ notification: Notification) {
+        guard let panel = notification.object as? NSPanel else { return }
+        if panel === listPanel {
+            UserDefaults.standard.set(
+                NSStringFromRect(panel.frame),
+                forKey: AppDefaults.Key.listPanelFrame.rawValue
+            )
+        }
+        // auraPanel resize is programmatic (AuraSizeManager) — not persisted here
+    }
+
     private func restoreFrame(for panel: FloatingPanel, key: AppDefaults.Key) {
         guard let saved = UserDefaults.standard.string(forKey: key.rawValue) else { return }
         let frame = NSRectFromString(saved)
