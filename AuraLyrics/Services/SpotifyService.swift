@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import AppKit
+import OSLog
 
 /// A service responsible for observing and querying Spotify.
 @MainActor
@@ -33,6 +34,23 @@ class SpotifyService: ObservableObject {
 
     // NETW-03: stored task reference — cancelled before starting a new fetch
     private var artworkTask: Task<Void, Never>?
+
+    // ERRH-04: allowlist of trusted Spotify CDN hostnames for artwork URLs
+    private static let trustedArtworkHosts: Set<String> = ["i.scdn.co", "mosaic.scdn.co"]
+
+    // ERRH-04: validate artwork URL — must be HTTPS and from a trusted host
+    private func isValidArtworkURL(_ urlString: String) -> Bool {
+        guard let url = URL(string: urlString),
+              url.scheme == "https",
+              let host = url.host,
+              Self.trustedArtworkHosts.contains(host) else {
+            Logger.spotifyService.debug(
+                "Artwork URL rejected: \(urlString, privacy: .private)"
+            )
+            return false
+        }
+        return true
+    }
 
     // THRD-02: All AppleScript execution runs on this serial queue — never main thread
     // Serial (not concurrent) by default — NSAppleScript is not thread-safe
@@ -77,7 +95,7 @@ class SpotifyService: ObservableObject {
         // Explicit compile — surfacing errors early rather than silently at runtime
         script?.compileAndReturnError(&compileError)
         if compileError != nil {
-            print("[SpotifyService] Failed to compile AppleScript: \(compileError!)")
+            Logger.spotifyService.fault("Failed to compile AppleScript: \(String(describing: compileError), privacy: .public)")
             return nil
         }
         return script
@@ -91,7 +109,7 @@ class SpotifyService: ObservableObject {
     }
 
     private func setupObservers() {
-        print("[SpotifyService] Setting up observer for: \(spotifyNotificationName.rawValue)")
+        Logger.spotifyService.debug("Setting up observer: \(self.spotifyNotificationName.rawValue, privacy: .public)")
         DistributedNotificationCenter.default()
             .publisher(for: spotifyNotificationName)
             .sink { [weak self] _ in self?.fetchSpotifyState() }
@@ -202,14 +220,14 @@ class SpotifyService: ObservableObject {
         let parts = input.components(separatedBy: "|||")
 
         guard parts.count >= 7 else {
-            print("[SpotifyService] Parse Error: Unexpected format -> \(input)")
+            Logger.spotifyService.error("Parse error: unexpected AppleScript result format")
             return
         }
 
         let artworkUrl = parts[6]
 
-        // Check if artwork URL changed, then fetch
-        if artworkUrl != currentState.artworkUrl && !artworkUrl.isEmpty {
+        // Check if artwork URL changed, then fetch (ERRH-04: validate before URLSession)
+        if artworkUrl != currentState.artworkUrl && isValidArtworkURL(artworkUrl) {
             // CACH-04: clear stale color before fetching new artwork
             self.artworkAverageColor = nil
             fetchArtwork(url: artworkUrl)
@@ -302,10 +320,15 @@ class SpotifyService: ObservableObject {
                     }
                 }
             } catch {
-                // Artwork failure is non-critical — silent is acceptable for Phase 1
-                // Phase 4 will add structured os_log here
+                Logger.spotifyService.debug("Artwork fetch error: \(error.localizedDescription, privacy: .public)")
             }
         }
     }
 
+}
+
+// LOGG-01/02: os.Logger extension — private scope avoids polluting global Logger namespace
+private extension Logger {
+    static let subsystem = Bundle.main.bundleIdentifier ?? "com.auralyrics"
+    static let spotifyService = Logger(subsystem: subsystem, category: "SpotifyService")
 }
