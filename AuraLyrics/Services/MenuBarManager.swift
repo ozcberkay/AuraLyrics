@@ -5,28 +5,37 @@ import SwiftUI
 @MainActor
 class MenuBarManager: NSObject {
     static let shared = MenuBarManager()
-    
+
     private var statusItem: NSStatusItem!
     private weak var windowManager: WindowManager?
-    
+
     // Mode Management
     enum AppMode: String {
         case lyrics
         case aura
     }
-    
+
     private(set) var currentMode: AppMode = .lyrics
-    
+
     // State to track locks (independent of mode)
     private var isLyricsLocked = false
     private var isAuraLocked = false
-    
+
     // Track visibility
     private var isWindowVisible = true
-    
+
+    // PERF-02: Stored NSMenuItem references — built once in buildMenu(), mutated in updateMenu()
+    private var mainMenu: NSMenu!
+    private var hideShowItem: NSMenuItem!
+    private var modeSwitchItem: NSMenuItem!
+    private var lockItem: NSMenuItem!
+    private var themeItems: [AppTheme: NSMenuItem] = [:]
+    private var sizeItems: [AuraSize: NSMenuItem] = [:]
+    private var sizeMenuItem: NSMenuItem!
+
     func setup(windowManager: WindowManager) {
         self.windowManager = windowManager
-        
+
         // Load saved mode
         if let savedModeString = UserDefaults.standard.string(forKey: AppDefaults.Key.appMode.rawValue),
            let savedMode = AppMode(rawValue: savedModeString) {
@@ -34,22 +43,23 @@ class MenuBarManager: NSObject {
         } else {
             self.currentMode = .lyrics // Default
         }
-        
+
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        
+
         if let button = statusItem.button {
             button.image = NSImage(systemSymbolName: "music.note.list", accessibilityDescription: "AuraLyrics")
         }
-        
+
         // Apply initial state
         applyMode(currentMode)
-        updateMenu()
+        // PERF-02: build menu once; updateMenu() is called at the end of buildMenu() to populate state
+        buildMenu()
     }
-    
+
     private func applyMode(_ mode: AppMode) {
         // When applying a mode (switching or launch), we ensure it is visible
         isWindowVisible = true
-        
+
         switch mode {
         case .lyrics:
             windowManager?.toggleAuraWindow(visible: false)
@@ -60,182 +70,192 @@ class MenuBarManager: NSObject {
         }
         UserDefaults.standard.set(mode.rawValue, forKey: AppDefaults.Key.appMode.rawValue)
     }
-    
+
     func hideWindows() {
         isWindowVisible = false
         windowManager?.toggleLyricsWindow(visible: false)
         windowManager?.toggleAuraWindow(visible: false)
         updateMenu()
     }
-    
+
     func showCurrentWindow() {
         applyMode(currentMode)
         updateMenu()
     }
-    
+
     func switchToAuraMode() {
         currentMode = .aura
         applyMode(.aura)
         updateMenu()
     }
-    
+
     func switchToLyricsMode() {
         currentMode = .lyrics
         applyMode(.lyrics)
         updateMenu()
     }
-    
-    private func updateMenu() {
-        let menu = NSMenu()
-        
-        // --- Controls ---
+
+    // PERF-02: buildMenu() called ONCE from setup() — NSHostingView allocated exactly once here
+    private func buildMenu() {
+        mainMenu = NSMenu()
+
+        // Controls — NSHostingView allocated ONCE here
         let controlsItem = NSMenuItem()
-        let controlsView = MenuControlsView()
-        let hostingView = NSHostingView(rootView: controlsView)
-        // Adjust frame to match the new vertical layout size (Artwork 120 + Text + Controls + Padding)
-        hostingView.frame = NSRect(x: 0, y: 0, width: 260, height: 290)
-        controlsItem.view = hostingView
-        menu.addItem(controlsItem)
-        
-        menu.addItem(NSMenuItem.separator())
-        
-        // --- View Controls ---
-        
-        // 1. Show/Hide Current
-        if !isWindowVisible {
-            let title = currentMode == .lyrics ? "Show Lyrics View" : "Show Aura Mode"
-            let item = NSMenuItem(title: title, action: #selector(showCurrentWindowAction), keyEquivalent: "s")
-            item.target = self
-            menu.addItem(item)
-        } else {
-            let title = "Hide Window"
-            let item = NSMenuItem(title: title, action: #selector(hideWindowsAction), keyEquivalent: "h")
-            item.target = self
-            menu.addItem(item)
-        }
-        
-        // 2. Switch Mode
-        // Context-aware switching
-        if currentMode == .lyrics {
-            let item = NSMenuItem(title: "Switch to Aura Mode", action: #selector(switchToAuraAction), keyEquivalent: "l")
-            item.target = self
-            menu.addItem(item)
-        } else {
-            let item = NSMenuItem(title: "Return to Lyrics View", action: #selector(switchToLyricsAction), keyEquivalent: "l")
-            item.target = self
-            menu.addItem(item)
-        }
-        
-        menu.addItem(NSMenuItem.separator())
-        
-        // --- Theme ---
+        controlsItem.view = {
+            let hv = NSHostingView(rootView: MenuControlsView())
+            // Frame matches the vertical layout size (Artwork 120 + Text + Controls + Padding)
+            hv.frame = NSRect(x: 0, y: 0, width: 260, height: 290)
+            return hv
+        }()
+        mainMenu.addItem(controlsItem)
+        mainMenu.addItem(NSMenuItem.separator())
+
+        // hideShowItem — title and action mutated in updateMenu()
+        hideShowItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        hideShowItem.target = self
+        mainMenu.addItem(hideShowItem)
+
+        // modeSwitchItem — title and action mutated in updateMenu()
+        modeSwitchItem = NSMenuItem(title: "", action: nil, keyEquivalent: "l")
+        modeSwitchItem.target = self
+        mainMenu.addItem(modeSwitchItem)
+
+        mainMenu.addItem(NSMenuItem.separator())
+
+        // Theme submenu
         let themeMenu = NSMenu()
-        let themeItem = NSMenuItem(title: "Theme", action: nil, keyEquivalent: "")
-        themeItem.submenu = themeMenu
-        menu.addItem(themeItem)
-        
+        let themeParent = NSMenuItem(title: "Theme", action: nil, keyEquivalent: "")
+        themeParent.submenu = themeMenu
+        mainMenu.addItem(themeParent)
         for theme in AppTheme.allCases {
             let item = NSMenuItem(title: theme.rawValue, action: #selector(changeTheme(_:)), keyEquivalent: "")
             item.target = self
-            // Note: Cannot easily bind state here without observing, but we can check current
-            item.state = (ThemeManager.shared.currentTheme == theme) ? .on : .off
             item.representedObject = theme
             themeMenu.addItem(item)
+            themeItems[theme] = item
         }
-        
-        // --- Aura Size ---
+
+        // Size submenu
         let sizeMenu = NSMenu()
-        let sizeItem = NSMenuItem(title: "Aura Size", action: nil, keyEquivalent: "")
-        sizeItem.submenu = sizeMenu
-        // Only enable when in Aura mode
-        sizeItem.isEnabled = (currentMode == .aura)
-        menu.addItem(sizeItem)
-        
+        sizeMenuItem = NSMenuItem(title: "Aura Size", action: nil, keyEquivalent: "")
+        sizeMenuItem.submenu = sizeMenu
+        mainMenu.addItem(sizeMenuItem)
         for size in AuraSize.allCases {
             let item = NSMenuItem(title: size.displayName, action: #selector(changeAuraSize(_:)), keyEquivalent: "")
             item.target = self
-            item.state = (AuraSizeManager.shared.currentSize == size) ? .on : .off
             item.representedObject = size
             sizeMenu.addItem(item)
+            sizeItems[size] = item
         }
-        
-        menu.addItem(NSMenuItem.separator())
 
-        
-        // --- Locking ---
-        // Dynamically show lock based on active mode
-        if currentMode == .lyrics {
-             // Lock Lyrics
-            let title = isLyricsLocked ? "Unlock Lyrics View" : "Lock Lyrics View"
-            let lockItem = NSMenuItem(title: title, action: #selector(toggleLockLyrics), keyEquivalent: "")
-            lockItem.state = isLyricsLocked ? .on : .off
-            lockItem.target = self
-            lockItem.isEnabled = isWindowVisible
-            menu.addItem(lockItem)
-        } else {
-             // Lock Aura
-            let title = isAuraLocked ? "Unlock Aura Mode" : "Lock Aura Mode"
-             let lockItem = NSMenuItem(title: title, action: #selector(toggleLockAura), keyEquivalent: "")
-            lockItem.state = isAuraLocked ? .on : .off
-            lockItem.target = self
-            lockItem.isEnabled = isWindowVisible
-            menu.addItem(lockItem)
-        }
-        
-        menu.addItem(NSMenuItem.separator())
-        
+        mainMenu.addItem(NSMenuItem.separator())
 
-        
-        // --- Quit ---
+        // Lock item — title, action, and state mutated in updateMenu()
+        lockItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        lockItem.target = self
+        mainMenu.addItem(lockItem)
+
+        mainMenu.addItem(NSMenuItem.separator())
+
+        // Quit
         let quitItem = NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "q")
         quitItem.target = self
-        menu.addItem(quitItem)
-        
-        statusItem.menu = menu
+        mainMenu.addItem(quitItem)
+
+        statusItem.menu = mainMenu
+
+        // Populate initial item state
+        updateMenu()
     }
-    
+
+    // PERF-02: updateMenu() ONLY mutates stored NSMenuItem references — no NSHostingView allocation
+    private func updateMenu() {
+        // hideShowItem
+        if !isWindowVisible {
+            let title = currentMode == .lyrics ? "Show Lyrics View" : "Show Aura Mode"
+            hideShowItem.title = title
+            hideShowItem.action = #selector(showCurrentWindowAction)
+            hideShowItem.keyEquivalent = "s"
+        } else {
+            hideShowItem.title = "Hide Window"
+            hideShowItem.action = #selector(hideWindowsAction)
+            hideShowItem.keyEquivalent = "h"
+        }
+
+        // modeSwitchItem
+        if currentMode == .lyrics {
+            modeSwitchItem.title = "Switch to Aura Mode"
+            modeSwitchItem.action = #selector(switchToAuraAction)
+        } else {
+            modeSwitchItem.title = "Return to Lyrics View"
+            modeSwitchItem.action = #selector(switchToLyricsAction)
+        }
+
+        // Theme checkmarks
+        for (theme, item) in themeItems {
+            item.state = ThemeManager.shared.currentTheme == theme ? .on : .off
+        }
+
+        // Size checkmarks + parent enable
+        sizeMenuItem.isEnabled = (currentMode == .aura)
+        for (size, item) in sizeItems {
+            item.state = AuraSizeManager.shared.currentSize == size ? .on : .off
+        }
+
+        // Lock item
+        if currentMode == .lyrics {
+            lockItem.title = isLyricsLocked ? "Unlock Lyrics View" : "Lock Lyrics View"
+            lockItem.action = #selector(toggleLockLyrics)
+            lockItem.state = isLyricsLocked ? .on : .off
+            lockItem.isEnabled = isWindowVisible
+        } else {
+            lockItem.title = isAuraLocked ? "Unlock Aura Mode" : "Lock Aura Mode"
+            lockItem.action = #selector(toggleLockAura)
+            lockItem.state = isAuraLocked ? .on : .off
+            lockItem.isEnabled = isWindowVisible
+        }
+    }
+
     // MARK: - Actions
-    
+
     @objc private func showCurrentWindowAction() {
         showCurrentWindow()
     }
-    
+
     @objc private func hideWindowsAction() {
         hideWindows()
     }
-    
+
     @objc private func switchToLyricsAction() {
         switchToLyricsMode()
     }
-    
+
     @objc private func switchToAuraAction() {
         switchToAuraMode()
     }
-    
+
     @objc private func toggleLockLyrics() {
         isLyricsLocked.toggle()
         windowManager?.setLyricsWindowClickThrough(enabled: isLyricsLocked)
         updateMenu()
     }
-    
+
     @objc private func toggleLockAura() {
         isAuraLocked.toggle()
         windowManager?.setAuraWindowClickThrough(enabled: isAuraLocked)
         updateMenu()
     }
-    
-
 
     @objc private func quitApp() {
         NSApp.terminate(nil)
     }
-    
+
     @objc private func changeTheme(_ sender: NSMenuItem) {
         guard let theme = sender.representedObject as? AppTheme else { return }
         ThemeManager.shared.setTheme(theme)
         updateMenu()
     }
-    
+
     @objc private func changeAuraSize(_ sender: NSMenuItem) {
         guard let size = sender.representedObject as? AuraSize else { return }
         AuraSizeManager.shared.setSize(size)
