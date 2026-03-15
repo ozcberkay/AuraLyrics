@@ -1,11 +1,12 @@
 import AppKit
+import Combine
 import SwiftUI
 
-class WindowManager: NSObject, NSApplicationDelegate {
+class WindowManager: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var listPanel: FloatingPanel?
     var auraPanel: FloatingPanel?
-    
-    private var sizeObserver: Any?
+
+    private var cancellables = Set<AnyCancellable>()
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         // --- Setup List Window (Lyrics View) ---
@@ -17,6 +18,8 @@ class WindowManager: NSObject, NSApplicationDelegate {
         listP.contentView = NSHostingView(rootView: LyricsView())
         // listP.makeKeyAndOrderFront(nil) // Handled by MenuBarManager
         self.listPanel = listP
+        listP.delegate = self
+        restoreFrame(for: listP, key: .listPanelFrame)
         
         // --- Setup Aura Window ---
         // Get initial size from AuraSizeManager
@@ -34,28 +37,23 @@ class WindowManager: NSObject, NSApplicationDelegate {
         auraP.contentView = NSHostingView(rootView: AuraView())
         // auraP.makeKeyAndOrderFront(nil) // Start hidden
         self.auraPanel = auraP
+        auraP.delegate = self
+        restoreFrame(for: auraP, key: .auraPanelFrame)
         
-        // --- Observe Aura Size Changes ---
-        sizeObserver = NotificationCenter.default.addObserver(
-            forName: .auraSizeDidChange,
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
-            guard let newSize = notification.object as? AuraSize else { return }
-            self?.resizeAuraPanel(to: newSize)
-        }
+        // --- Observe Aura Size Changes via Combine ---
+        AuraSizeManager.shared.$currentSize
+            .dropFirst()  // skip initial emission — auraPanel already sized at creation above
+            .receive(on: RunLoop.main)
+            .sink { [weak self] newSize in
+                self?.resizeAuraPanel(to: newSize)
+            }
+            .store(in: &cancellables)
         
         // --- Setup Menu Bar ---
         MenuBarManager.shared.setup(windowManager: self)
         
         // Ensure the app doesn't close when all windows are hidden (though this is a panel)
         NSApp.setActivationPolicy(.accessory)
-    }
-    
-    deinit {
-        if let observer = sizeObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
     }
     
     // MARK: - Aura Size Management
@@ -84,6 +82,43 @@ class WindowManager: NSObject, NSApplicationDelegate {
         }
     }
     
+    // MARK: - Frame Persistence (UIPX-01)
+
+    func windowDidMove(_ notification: Notification) {
+        guard let panel = notification.object as? NSPanel else { return }
+        if panel === listPanel {
+            UserDefaults.standard.set(
+                NSStringFromRect(panel.frame),
+                forKey: AppDefaults.Key.listPanelFrame.rawValue
+            )
+        } else if panel === auraPanel {
+            UserDefaults.standard.set(
+                NSStringFromRect(panel.frame),
+                forKey: AppDefaults.Key.auraPanelFrame.rawValue
+            )
+        }
+    }
+
+    func windowDidResize(_ notification: Notification) {
+        guard let panel = notification.object as? NSPanel else { return }
+        if panel === listPanel {
+            UserDefaults.standard.set(
+                NSStringFromRect(panel.frame),
+                forKey: AppDefaults.Key.listPanelFrame.rawValue
+            )
+        }
+        // auraPanel resize is programmatic (AuraSizeManager) — not persisted here
+    }
+
+    private func restoreFrame(for panel: FloatingPanel, key: AppDefaults.Key) {
+        guard let saved = UserDefaults.standard.string(forKey: key.rawValue) else { return }
+        let frame = NSRectFromString(saved)
+        guard frame != .zero,
+              let screen = NSScreen.main,
+              screen.visibleFrame.intersects(frame) else { return }
+        panel.setFrame(frame, display: false)
+    }
+
     // MARK: - Window Control
     
     func toggleLyricsWindow(visible: Bool) {

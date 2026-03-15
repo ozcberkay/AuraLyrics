@@ -144,20 +144,18 @@ enum AuraSize: String, CaseIterable, Identifiable {
     }
 }
 
+@MainActor
 class AuraSizeManager: ObservableObject {
     static let shared = AuraSizeManager()
-    
-    private let sizeKey = "AuraSize"
-    
+
     @Published var currentSize: AuraSize {
         didSet {
-            UserDefaults.standard.set(currentSize.rawValue, forKey: sizeKey)
-            NotificationCenter.default.post(name: .auraSizeDidChange, object: currentSize)
+            UserDefaults.standard.set(currentSize.rawValue, forKey: AppDefaults.Key.auraSize.rawValue)
         }
     }
-    
+
     private init() {
-        if let savedSize = UserDefaults.standard.string(forKey: sizeKey),
+        if let savedSize = UserDefaults.standard.string(forKey: AppDefaults.Key.auraSize.rawValue),
            let size = AuraSize(rawValue: savedSize) {
             self.currentSize = size
         } else {
@@ -173,7 +171,3 @@ class AuraSizeManager: ObservableObject {
     }
 }
 
-// Notification for size changes
-extension Notification.Name {
-    static let auraSizeDidChange = Notification.Name("auraSizeDidChange")
-}

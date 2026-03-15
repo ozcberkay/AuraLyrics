@@ -13,7 +13,7 @@ struct AdaptiveBackgroundView: View {
                     // Base dark tint to improve text contrast
                     Color.black.opacity(0.3)
                     
-                    if let image = spotifyService.artworkImage, let nsColor = image.averageColor {
+                    if let nsColor = spotifyService.artworkAverageColor {
                         let color = Color(nsColor: nsColor)
                         
                         // Animated blobs

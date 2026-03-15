@@ -9,17 +9,18 @@ enum AppTheme: String, CaseIterable, Identifiable {
     var id: String { self.rawValue }
 }
 
+@MainActor
 class ThemeManager: ObservableObject {
     static let shared = ThemeManager()
     
     @Published var currentTheme: AppTheme {
         didSet {
-            UserDefaults.standard.set(currentTheme.rawValue, forKey: "AppTheme")
+            UserDefaults.standard.set(currentTheme.rawValue, forKey: AppDefaults.Key.appTheme.rawValue)
         }
     }
-    
+
     private init() {
-        if let savedTheme = UserDefaults.standard.string(forKey: "AppTheme"),
+        if let savedTheme = UserDefaults.standard.string(forKey: AppDefaults.Key.appTheme.rawValue),
            let theme = AppTheme(rawValue: savedTheme) {
             self.currentTheme = theme
         } else {
