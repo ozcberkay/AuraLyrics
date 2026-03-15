@@ -11,6 +11,16 @@ class SpotifyService: ObservableObject {
     @Published var currentState: PlaybackState = .empty
     @Published var artworkImage: NSImage? = nil
 
+    // CACH-03: in-memory artwork cache — NSImage is NSObject, no wrapper needed
+    private let artworkCache: NSCache<NSString, NSImage> = {
+        let c = NSCache<NSString, NSImage>()
+        c.countLimit = 20   // CACH-03
+        return c
+    }()
+
+    // CACH-04: color extraction result — computed once per artwork URL, nil on track change
+    @Published var artworkAverageColor: NSColor? = nil
+
     // ERRH-03: AppleScript health monitor
     private var consecutiveAppleScriptFailures = 0
     private let appleScriptFailureThreshold = 5
@@ -193,7 +203,9 @@ class SpotifyService: ObservableObject {
 
         // Check if artwork URL changed, then fetch
         if artworkUrl != currentState.artworkUrl && !artworkUrl.isEmpty {
-           fetchArtwork(url: artworkUrl)
+            // CACH-04: clear stale color before fetching new artwork
+            self.artworkAverageColor = nil
+            fetchArtwork(url: artworkUrl)
         }
 
         let track = parts[0]
@@ -241,6 +253,19 @@ class SpotifyService: ObservableObject {
         artworkTask?.cancel()
         artworkTask = nil
 
+        // CACH-03: capture key before any async context — Task closure captures a local String copy
+        let urlKey = url as NSString
+
+        // CACH-03: serve from cache if available — no URLSession request needed
+        if let cachedImage = artworkCache.object(forKey: urlKey) {
+            self.artworkImage = cachedImage
+            Task.detached(priority: .utility) { [weak self] in
+                let color = cachedImage.averageColor
+                await MainActor.run { [weak self] in self?.artworkAverageColor = color }
+            }
+            return
+        }
+
         guard let validUrl = URL(string: url) else { return }
 
         artworkTask = Task {
@@ -258,7 +283,13 @@ class SpotifyService: ObservableObject {
 
                 if let image = NSImage(data: data) {
                     // @MainActor inherited from SpotifyService — direct assignment is safe
+                    self.artworkCache.setObject(image, forKey: urlKey)
                     self.artworkImage = image
+                    // CACH-04: extract color off @MainActor — CGContext resize + pixel read
+                    Task.detached(priority: .utility) { [weak self] in
+                        let color = image.averageColor
+                        await MainActor.run { [weak self] in self?.artworkAverageColor = color }
+                    }
                 }
             } catch {
                 // Artwork failure is non-critical — silent is acceptable for Phase 1
