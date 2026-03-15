@@ -7,5 +7,7 @@ enum AppDefaults {
         case auraSize = "AuraSize"
         case appTheme = "AppTheme"
         case appMode  = "AuraLyricsAppMode"
+        case listPanelFrame = "ListPanelFrame"   // UIPX-01: floating lyrics panel frame
+        case auraPanelFrame = "AuraPanelFrame"   // UIPX-01: aura panel frame
     }
 }
