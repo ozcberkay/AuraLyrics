@@ -2,7 +2,7 @@ import AppKit
 import Combine
 import SwiftUI
 
-class WindowManager: NSObject, NSApplicationDelegate {
+class WindowManager: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var listPanel: FloatingPanel?
     var auraPanel: FloatingPanel?
 
@@ -18,6 +18,8 @@ class WindowManager: NSObject, NSApplicationDelegate {
         listP.contentView = NSHostingView(rootView: LyricsView())
         // listP.makeKeyAndOrderFront(nil) // Handled by MenuBarManager
         self.listPanel = listP
+        listP.delegate = self
+        restoreFrame(for: listP, key: .listPanelFrame)
         
         // --- Setup Aura Window ---
         // Get initial size from AuraSizeManager
@@ -35,6 +37,8 @@ class WindowManager: NSObject, NSApplicationDelegate {
         auraP.contentView = NSHostingView(rootView: AuraView())
         // auraP.makeKeyAndOrderFront(nil) // Start hidden
         self.auraPanel = auraP
+        auraP.delegate = self
+        restoreFrame(for: auraP, key: .auraPanelFrame)
         
         // --- Observe Aura Size Changes via Combine ---
         AuraSizeManager.shared.$currentSize
@@ -78,6 +82,32 @@ class WindowManager: NSObject, NSApplicationDelegate {
         }
     }
     
+    // MARK: - Frame Persistence (UIPX-01)
+
+    func windowDidMove(_ notification: Notification) {
+        guard let panel = notification.object as? NSPanel else { return }
+        if panel === listPanel {
+            UserDefaults.standard.set(
+                NSStringFromRect(panel.frame),
+                forKey: AppDefaults.Key.listPanelFrame.rawValue
+            )
+        } else if panel === auraPanel {
+            UserDefaults.standard.set(
+                NSStringFromRect(panel.frame),
+                forKey: AppDefaults.Key.auraPanelFrame.rawValue
+            )
+        }
+    }
+
+    private func restoreFrame(for panel: FloatingPanel, key: AppDefaults.Key) {
+        guard let saved = UserDefaults.standard.string(forKey: key.rawValue) else { return }
+        let frame = NSRectFromString(saved)
+        guard frame != .zero,
+              let screen = NSScreen.main,
+              screen.visibleFrame.intersects(frame) else { return }
+        panel.setFrame(frame, display: false)
+    }
+
     // MARK: - Window Control
     
     func toggleLyricsWindow(visible: Bool) {
