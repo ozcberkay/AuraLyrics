@@ -28,6 +28,8 @@ class SpotifyService: ObservableObject {
 
     private var cancellables = Set<AnyCancellable>()
     private var pollTimer: AnyCancellable?
+    // PERF-01: track current interval so startPolling(interval:) can no-op on same-interval calls
+    private var currentPollInterval: TimeInterval = 2.0
 
     // NETW-03: stored task reference — cancelled before starting a new fetch
     private var artworkTask: Task<Void, Never>?
@@ -83,7 +85,7 @@ class SpotifyService: ObservableObject {
 
     private init() {
         setupObservers()
-        startPolling()
+        startPolling(interval: 2.0)
         // Initial fetch
         fetchSpotifyState()
     }
@@ -96,10 +98,14 @@ class SpotifyService: ObservableObject {
             .store(in: &cancellables)
     }
 
-    private func startPolling() {
-        guard pollTimer == nil else { return }
-        // Poll every 2 seconds to catch seeking/drifting that doesn't trigger a notification
-        pollTimer = Timer.publish(every: 2.0, on: .main, in: .common)
+    // PERF-01: adaptive polling — 2.0s playing, 5.0s paused, 10.0s not running
+    private func startPolling(interval: TimeInterval) {
+        // No-op if timer is already running at the same interval
+        guard pollTimer == nil || currentPollInterval != interval else { return }
+        pollTimer?.cancel()
+        pollTimer = nil
+        currentPollInterval = interval
+        pollTimer = Timer.publish(every: interval, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 self?.fetchSpotifyState()
@@ -173,7 +179,8 @@ class SpotifyService: ObservableObject {
     // @MainActor is inherited from the class — no annotation needed on the method
     private func handleAppleScriptResult(_ result: String) {
         if result == "NOT_RUNNING" {
-            stopPolling()   // TIMR-03: pause polling when Spotify is not running
+            // PERF-01: slow-poll at 10s instead of stopping entirely — reduces CPU while Spotify is absent
+            startPolling(interval: 10.0)
             if currentState != .notRunning {
                 currentState = .notRunning
                 artworkImage = nil
@@ -183,8 +190,8 @@ class SpotifyService: ObservableObject {
 
         if result.starts(with: "ERROR") { return }
 
-        // TIMR-03: resume polling if it was paused (pollTimer == nil after stopPolling)
-        startPolling()
+        // TIMR-03: resume polling if it was paused; parseResult will immediately adjust to 5.0 if paused
+        startPolling(interval: 2.0)
 
         parseResult(result)
     }
@@ -230,6 +237,9 @@ class SpotifyService: ObservableObject {
         let stateString = parts[5]
 
         let isPlaying = (stateString == "playing")
+
+        // PERF-01: adjust poll interval before publishing state — 2s when playing, 5s when paused
+        startPolling(interval: isPlaying ? 2.0 : 5.0)
 
         let newState = PlaybackState(
             track: track,
