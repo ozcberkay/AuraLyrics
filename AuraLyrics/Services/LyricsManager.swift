@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import OSLog
 import SwiftUI
 
 // CACH-01: NSCache requires AnyObject values; struct LyricsLine needs a class wrapper
@@ -62,6 +63,9 @@ class LyricsManager: ObservableObject {
                 try data.write(to: fileURL, options: .atomic)
             } catch {
                 // Disk cache write failure is non-critical; in-memory cache still serves fast path
+                Logger.lyricsManager.error(
+                    "Disk cache write failed for track: \(track, privacy: .private), path: \(fileURL.path, privacy: .private) — \(error.localizedDescription, privacy: .public)"
+                )
             }
         }
     }
@@ -206,4 +210,10 @@ class LyricsManager: ObservableObject {
             }
         }
     }
+}
+
+// LOGG-01: os.Logger extension for LyricsManager — private scope, same pattern as SpotifyService
+private extension Logger {
+    static let subsystem = Bundle.main.bundleIdentifier ?? "com.auralyrics"
+    static let lyricsManager = Logger(subsystem: subsystem, category: "LyricsManager")
 }
