@@ -86,4 +86,52 @@ final class SpotifyServiceTests: XCTestCase {
             "ERRH-03: SpotifyService must publish isDegraded: Bool flag"
         )
     }
+
+    // LOGG-01: all print() calls replaced with os.Logger — verified via source inspection
+    func testNoRawPrintStatements() throws {
+        let sourceURL = URL(fileURLWithPath: #file)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("AuraLyrics/Services/SpotifyService.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        XCTAssertFalse(source.contains("print("),
+                       "LOGG-01: All print() must be replaced with os.Logger")
+        XCTAssertTrue(source.contains("import OSLog"),
+                      "LOGG-01: OSLog must be imported")
+        XCTAssertTrue(source.contains("Logger.spotifyService"),
+                      "LOGG-01: Logger.spotifyService must be used")
+    }
+
+    // LOGG-02: user data in log messages is marked with privacy: .private
+    func testUserDataPrivacyMarking() throws {
+        let sourceURL = URL(fileURLWithPath: #file)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("AuraLyrics/Services/SpotifyService.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        XCTAssertTrue(source.contains("privacy: .private"),
+                      "LOGG-02: User data must be marked .private in log messages")
+        XCTAssertFalse(source.contains("print(\"[SpotifyService]"),
+                       "LOGG-02: Old-style print prefix must be gone")
+    }
+
+    // ERRH-04: artwork URL validated before URLSession — HTTPS + trusted-host allowlist
+    func testArtworkURLValidation() throws {
+        let sourceURL = URL(fileURLWithPath: #file)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("AuraLyrics/Services/SpotifyService.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        XCTAssertTrue(source.contains("isValidArtworkURL"),
+                      "ERRH-04: URL validation function must exist")
+        XCTAssertTrue(source.contains("trustedArtworkHosts"),
+                      "ERRH-04: Trusted host allowlist must exist")
+        XCTAssertTrue(source.contains("i.scdn.co"),
+                      "ERRH-04: i.scdn.co must be in the allowlist")
+        XCTAssertTrue(source.contains("url.scheme == \"https\""),
+                      "ERRH-04: HTTPS scheme check must be present")
+    }
 }
