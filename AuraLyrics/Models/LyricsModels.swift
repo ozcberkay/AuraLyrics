@@ -1,7 +1,7 @@
 import Foundation
 
-struct LyricsLine: Identifiable, Equatable {
-    let id = UUID()
+struct LyricsLine: Identifiable, Equatable, Codable {
+    let id: UUID
     let startTime: TimeInterval
     let text: String
     let isSynced: Bool

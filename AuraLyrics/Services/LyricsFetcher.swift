@@ -102,7 +102,7 @@ class LyricsFetcher {
                 return plainLyrics.components(separatedBy: .newlines)
                     .map { $0.trimmingCharacters(in: .whitespaces) }
                     .filter { !$0.isEmpty }
-                    .map { LyricsLine(startTime: 0, text: $0, isSynced: false) }
+                    .map { LyricsLine(id: UUID(), startTime: 0, text: $0, isSynced: false) }
             } else {
                 return []
             }

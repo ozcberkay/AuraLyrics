@@ -32,7 +32,7 @@ struct LRCParser {
                     let divisor = pow(10.0, digitCount)
                     let fractionalSeconds = hundredths / divisor
                     let startTime = (minutes * 60.0) + seconds + fractionalSeconds
-                    lines.append(LyricsLine(startTime: startTime, text: text, isSynced: true))
+                    lines.append(LyricsLine(id: UUID(), startTime: startTime, text: text, isSynced: true))
                 }
             }
         }

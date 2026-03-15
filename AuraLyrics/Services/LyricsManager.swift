@@ -2,6 +2,12 @@ import Foundation
 import Combine
 import SwiftUI
 
+// CACH-01: NSCache requires AnyObject values; struct LyricsLine needs a class wrapper
+final class CachedLyricsLines: NSObject {
+    let lines: [LyricsLine]
+    init(_ lines: [LyricsLine]) { self.lines = lines }
+}
+
 @MainActor
 class LyricsManager: ObservableObject {
     static let shared = LyricsManager()
@@ -25,6 +31,50 @@ class LyricsManager: ObservableObject {
     private var currentTrackID: String? = nil
     private var lastState: PlaybackState = .empty
     private var timer: AnyCancellable?
+
+    // CACH-01: In-memory NSCache with countLimit=50 for instant within-session track switches
+    private let lyricsMemoryCache: NSCache<NSString, CachedLyricsLines> = {
+        let c = NSCache<NSString, CachedLyricsLines>()
+        c.countLimit = 50
+        return c
+    }()
+
+    // CACH-02: Disk cache in ~/Library/Caches/AuraLyrics/
+    private var cacheDirectory: URL? {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)
+            .first?.appendingPathComponent("AuraLyrics", isDirectory: true)
+    }
+
+    private func cacheFileURL(track: String, artist: String) -> URL? {
+        let safeKey = "\(track)---\(artist)"
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: ":", with: "_")
+        return cacheDirectory?.appendingPathComponent("\(safeKey).json")
+    }
+
+    private func saveLyricsToDisk(_ lines: [LyricsLine], track: String, artist: String) {
+        guard let fileURL = cacheFileURL(track: track, artist: artist),
+              let dir = cacheDirectory else { return }
+        Task.detached(priority: .background) {
+            do {
+                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                let data = try JSONEncoder().encode(lines)
+                try data.write(to: fileURL, options: .atomic)
+            } catch {
+                // Disk cache write failure is non-critical; in-memory cache still serves fast path
+            }
+        }
+    }
+
+    private func loadLyricsFromDisk(track: String, artist: String) -> [LyricsLine]? {
+        guard let fileURL = cacheFileURL(track: track, artist: artist) else { return nil }
+        do {
+            let data = try Data(contentsOf: fileURL)
+            return try JSONDecoder().decode([LyricsLine].self, from: data)
+        } catch {
+            return nil
+        }
+    }
 
     private init() {
         SpotifyService.shared.$currentState
@@ -103,9 +153,29 @@ class LyricsManager: ObservableObject {
     }
 
     private func fetchLyrics(for playbackState: PlaybackState) {
+        // CACH-01: Check in-memory cache first — instant hit for same-session track revisits
+        let cacheKey = "\(playbackState.track)---\(playbackState.artist)" as NSString
+        if let cached = lyricsMemoryCache.object(forKey: cacheKey) {
+            self.state = .loaded(cached.lines)
+            if case .loaded(let lines) = self.state, self.lastState.isPlaying && !lines.isEmpty {
+                self.startTimerIfNeeded()
+            }
+            return
+        }
+
         self.state = .loading   // was: isLoading = true; error = nil
 
         Task {
+            // CACH-02: Check disk cache before going to network — survives app relaunches
+            if let diskLines = self.loadLyricsFromDisk(track: playbackState.track, artist: playbackState.artist) {
+                self.lyricsMemoryCache.setObject(CachedLyricsLines(diskLines), forKey: cacheKey)
+                self.state = .loaded(diskLines)
+                if case .loaded(let lines) = self.state, self.lastState.isPlaying && !lines.isEmpty {
+                    self.startTimerIfNeeded()
+                }
+                return
+            }
+
             do {
                 let fetchedLyrics = try await fetcher.fetchLyrics(
                     track: playbackState.track,
@@ -114,6 +184,10 @@ class LyricsManager: ObservableObject {
                     duration: playbackState.duration
                 )
                 self.state = .loaded(fetchedLyrics)   // was: self.lyrics = fetchedLyrics; self.isLoading = false
+
+                // CACH-01/02: Populate both cache layers after successful network fetch
+                self.lyricsMemoryCache.setObject(CachedLyricsLines(fetchedLyrics), forKey: cacheKey)
+                self.saveLyricsToDisk(fetchedLyrics, track: playbackState.track, artist: playbackState.artist)
 
                 // TIMR-02: restart timer if we were waiting for lyrics to arrive
                 if case .loaded(let lines) = self.state, self.lastState.isPlaying && !lines.isEmpty {
