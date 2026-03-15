@@ -109,45 +109,59 @@ struct LyricsView: View {
                         Spacer()
 
                     case .loaded(let lines):
-                        ScrollViewReader { proxy in
-                            ScrollView(showsIndicators: false) {
-                                LazyVStack(spacing: 24) {
-                                    Color.clear.frame(height: 150)
+                        if lyricsManager.isSynced {
+                            // UIPX-03: synced path — ScrollViewReader + animated auto-scroll to active line
+                            ScrollViewReader { proxy in
+                                ScrollView(showsIndicators: false) {
+                                    LazyVStack(spacing: 24) {
+                                        Color.clear.frame(height: 150)
 
-                                    if !lines.isEmpty && !lyricsManager.isSynced {
-                                        Text("Lyrics not synced")
-                                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                                            .textCase(.uppercase)
-                                            .foregroundStyle(.white.opacity(0.3))
-                                            .padding(.bottom, 10)
+                                        ForEach(lines) { line in
+                                            let isActive = lyricsManager.activeLineID == line.id
+
+                                            Text(line.text)
+                                                .font(.system(size: isActive ? 24 : 20, weight: .bold, design: .rounded))
+                                                .multilineTextAlignment(.center)
+                                                .padding(.horizontal, 30)
+                                                .foregroundStyle(isActive ? .white : .white.opacity(0.4))
+                                                .blur(radius: isActive ? 0 : 0.5)
+                                                .shadow(color: .black.opacity(0.5), radius: 4, x: 0, y: 2)
+                                                .scaleEffect(isActive ? 1.05 : 1.0)
+                                                .lineLimit(2)
+                                                .minimumScaleFactor(0.7)
+                                                .fixedSize(horizontal: false, vertical: true)
+                                                .id(line.id)
+                                        }
+
+                                        Color.clear.frame(height: 200)
                                     }
-
-                                    ForEach(lines) { line in
-                                        let isActive = lyricsManager.activeLineID == line.id
-
-                                        Text(line.text)
-                                            .font(.system(size: isActive ? 24 : 20, weight: .bold, design: .rounded))
-                                            .multilineTextAlignment(.center)
-                                            .padding(.horizontal, 30)
-                                            .foregroundStyle(isActive ? .white : (lyricsManager.isSynced ? .white.opacity(0.4) : .white.opacity(0.8)))
-                                            .blur(radius: isActive ? 0 : (lyricsManager.isSynced ? 0.5 : 0))
-                                            .shadow(color: .black.opacity(0.5), radius: 4, x: 0, y: 2)
-                                            .scaleEffect(isActive ? 1.05 : 1.0)
-                                            .lineLimit(2) // Allow up to 2 lines
-                                            .minimumScaleFactor(0.7) // Scale down if needed
-                                            .fixedSize(horizontal: false, vertical: true) // Allow vertical growth
-                                            .id(line.id)
+                                }
+                                .onChange(of: lyricsManager.activeLineID) { oldID, newID in
+                                    if let newID = newID {
+                                        withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                                            proxy.scrollTo(newID, anchor: .center)
+                                        }
                                     }
-
-                                    Color.clear.frame(height: 200)
                                 }
                             }
-                            .onChange(of: lyricsManager.activeLineID) { oldID, newID in
-                                if let newID = newID {
-                                    withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                                        proxy.scrollTo(newID, anchor: .center)
+                        } else {
+                            // UIPX-03: unsynced path — plain scrollable list, no auto-scroll, user scrolls freely
+                            ScrollView(showsIndicators: false) {
+                                LazyVStack(spacing: 16) {
+                                    Color.clear.frame(height: 20)
+
+                                    ForEach(lines.filter { !$0.text.isEmpty }) { line in
+                                        Text(line.text)
+                                            .font(.system(size: 18, weight: .semibold, design: .rounded))
+                                            .multilineTextAlignment(.center)
+                                            .padding(.horizontal, 30)
+                                            .foregroundStyle(.white.opacity(0.8))
+                                            .fixedSize(horizontal: false, vertical: true)
                                     }
+
+                                    Color.clear.frame(height: 20)
                                 }
+                                .padding(.vertical, 20)
                             }
                         }
                     }
