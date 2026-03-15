@@ -20,6 +20,22 @@ struct AuraView: View {
             Color.clear
 
             VStack(spacing: 8 * currentSize.scaleFactor) {
+                // ERRH-03: degraded check before state switch — health trumps playback state
+                if spotifyService.isDegraded {
+                    Spacer()
+                    VStack(spacing: 8 * currentSize.scaleFactor) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: currentSize.statusFontSize * 1.8))
+                            .foregroundStyle(.white.opacity(0.6))
+                        Text("Spotify connection degraded")
+                            .font(.system(size: currentSize.statusFontSize, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.8))
+                        Text("AppleScript is not responding")
+                            .font(.system(size: currentSize.statusFontSize * 0.85, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.4))
+                    }
+                    Spacer()
+                } else {
                 switch lyricsManager.state {
                 case .loading:
                     ProgressView()
@@ -184,6 +200,7 @@ struct AuraView: View {
                             .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
                     }
                 }
+                } // end else (not degraded)
             }
             .padding(.horizontal, 20 * currentSize.scaleFactor)
             .animation(.spring(response: 0.5, dampingFraction: 0.8), value: lyricsManager.activeLineID)
