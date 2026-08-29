@@ -1,15 +1,24 @@
 {
   "$schema": "https://wvw.dev/apps.schema.json",
   "store": {
-    "name": "AuraWorkshq",
-    "developer": "Berkay Ozcan",
+    "name": "AuraWorks",
+    "developer": "Berkay Özcan",
     "tagline": "Minimalist macOS apps.",
     "github": "https://github.com/auraworkshq"
   },
   "categories": [
-    { "id": "macos", "name": "macOS Apps" },
-    { "id": "music", "name": "Music" },
-    { "id": "utilities", "name": "Utilities" }
+    {
+      "id": "macos",
+      "name": "macOS Apps"
+    },
+    {
+      "id": "music",
+      "name": "Music"
+    },
+    {
+      "id": "utilities",
+      "name": "Utilities"
+    }
   ],
   "apps": [
     {
@@ -17,29 +26,33 @@
       "name": "AuraLyrics",
       "subtitle": "Floating Spotify lyrics for macOS",
       "description": "Minimalist, always-on-top lyrics window for Spotify with menu bar controls.",
-      "longDescription": "AuraLyrics displays real-time synchronized lyrics in a beautiful floating window on macOS. It integrates with the menu bar for playback control and works with Spotify via AppleScript — no API keys required. Features Aura mode for ambient album art display, adaptive theming, and zero external dependencies.",
+      "longDescription": "AuraLyrics displays real-time synchronized lyrics in a floating window on macOS. It reads playback state from the Spotify desktop app through Spotify's own scripting interface — no API keys or accounts — and looks lyrics up in the LRCLIB community database. Aura mode fills the window with an ambient background that takes its colour from the album art. Native Swift and SwiftUI, no third-party libraries, no telemetry.",
       "icon": "https://raw.githubusercontent.com/auraworkshq/AuraLyrics/main/assets/icon.png",
       "iconStyle": {
         "scale": 1.2,
         "objectFit": "cover",
         "borderRadius": "22%"
       },
-      "category": ["macos", "music", "utilities"],
+      "category": [
+        "macos",
+        "music",
+        "utilities"
+      ],
       "platform": "macOS",
       "price": "Free",
       "github": "https://github.com/auraworkshq/AuraLyrics",
       "language": "Swift",
       "brew": "brew tap ozcberkay/tap && brew install --cask auralyrics",
       "downloadUrl": "https://github.com/auraworkshq/AuraLyrics/releases/latest",
-      "requirements": "macOS 14.0 or later",
+      "requirements": "macOS 14.0 or later; Spotify desktop app",
       "features": [
         "Always-on-top floating lyrics window",
+        "Aura mode — ambient background coloured by the album art",
         "Menu bar Spotify playback controls",
-        "Real-time synchronized lyrics",
-        "Aura mode — ambient album art background",
-        "Adaptive themes (dark aura, minimalist)",
-        "Zero Spotify API credentials needed",
-        "Two-layer lyrics cache for instant display"
+        "Real-time synchronized lyrics from LRCLIB",
+        "Adaptive, dark aura and minimalist themes",
+        "Two-layer cache for instant repeat playback",
+        "No accounts, no API keys, no telemetry"
       ],
       "screenshots": [
         "https://raw.githubusercontent.com/auraworkshq/AuraLyrics/main/assets/screenshots/lyrics-view.png",

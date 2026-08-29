@@ -2,11 +2,12 @@
 
 # Configuration
 APP_NAME="AuraLyrics"
+VERSION="1.1.0"          # single source of truth — written into Info.plist below
 BUILD_DIR=".build/release"
 OUTPUT_DIR="dist"
 EXECUTABLE="$BUILD_DIR/$APP_NAME"
 
-echo "🚀 Starting Build Process for $APP_NAME..."
+echo "🚀 Starting Build Process for $APP_NAME $VERSION..."
 
 # 1. Clean and Build Release
 echo "🛠️  Building Release..."
@@ -31,12 +32,10 @@ mkdir -p "$APP_BUNDLE/Contents/Resources"
 echo "📦 Packaging..."
 cp "$EXECUTABLE" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
-# Copy resources if any (e.g. SpotifyScript.scpt)
-# NOTE: SwiftPM bundles resources differently, checking build path
-# If your resource is copied to the bundle by SwiftPM, we might need to copy it from .build/release/AuraLyrics_AuraLyrics.bundle
-# For now, we assume simple copy if exists, or if embedded in binary logic.
-# Our code looks for Bundle.main or dev path. In release app, Bundle.main is the .app.
-# We need to make sure Resources are in Contents/Resources.
+# Copy resources (currently just AppIcon.icns — the AppleScript is embedded in
+# SpotifyService.swift, so the app needs no external script file).
+# SwiftPM emits resources into an architecture-specific bundle inside .build/;
+# copy its contents into Contents/Resources so Bundle.main finds them in the .app.
 
 # Find the resource bundle created by SwiftPM (searching deeper for architecture-specific paths)
 RESOURCE_BUNDLE=$(find .build -name "${APP_NAME}_${APP_NAME}.bundle" | grep "release" | head -n 1)
@@ -58,9 +57,11 @@ cat <<EOF > "$APP_BUNDLE/Contents/Info.plist"
     <key>CFBundleName</key>
     <string>$APP_NAME</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.1</string>
+    <string>$VERSION</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>$VERSION</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>14.0</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon.icns</string>
     <key>NSAppleEventsUsageDescription</key>
@@ -71,9 +72,13 @@ cat <<EOF > "$APP_BUNDLE/Contents/Info.plist"
 </plist>
 EOF
 
-# 5. Ad-hoc Sign the App (Required for M1/M2/M3 chips)
+# 5. Ad-hoc Sign the App (required on Apple silicon)
+# Ad-hoc means Gatekeeper still warns users who download the archive directly.
+# Homebrew installs are unaffected — the cask strips the quarantine attribute.
+# To ship a notarized build instead, replace "-" with a Developer ID identity and add
+# --options runtime --timestamp, then run notarytool. (--deep is deprecated by Apple.)
 echo "✍️  Ad-hoc Signing..."
-codesign --force --deep --sign - "$APP_BUNDLE"
+codesign --force --sign - "$APP_BUNDLE"
 
 # 6. Zip it
 echo "🤐 Zipping..."
@@ -85,7 +90,7 @@ SHA256=$(shasum -a 256 "$ZIP_NAME" | awk '{print $1}')
 echo ""
 echo "✅ Build Complete!"
 echo "---------------------------------------------------"
-echo "📁 Artifact: $OUTPUT_DIR/$ZIP_NAME"
+echo "📁 Artifact: $OUTPUT_DIR/$ZIP_NAME  (version $VERSION)"
 echo "🔑 SHA256:   $SHA256"
 echo "---------------------------------------------------"
 echo "Use this SHA256 in your Homebrew formula."

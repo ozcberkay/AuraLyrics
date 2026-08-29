@@ -64,6 +64,9 @@ class LyricsFetcher {
         // NETW-02: explicit 10-second timeout on every URLRequest before sending
         var request = URLRequest(url: url)
         request.timeoutInterval = 10  // NETW-02: explicit 10-second timeout
+        // lrclib.net asks clients to identify themselves so its maintainer can
+        // contact the author of a misbehaving app instead of blocking it blindly.
+        request.setValue(AppInfo.userAgent, forHTTPHeaderField: "User-Agent")
 
         let (data, response) = try await fetchWithRetry(request: request)
 

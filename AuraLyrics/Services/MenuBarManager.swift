@@ -157,6 +157,17 @@ class MenuBarManager: NSObject {
 
         mainMenu.addItem(NSMenuItem.separator())
 
+        // Attribution — lyrics come from the lrclib.net community database.
+        let attributionItem = NSMenuItem(
+            title: AppInfo.lyricsAttribution,
+            action: #selector(openLyricsSource),
+            keyEquivalent: ""
+        )
+        attributionItem.target = self
+        mainMenu.addItem(attributionItem)
+
+        mainMenu.addItem(NSMenuItem.separator())
+
         // Quit
         let quitItem = NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "q")
         quitItem.target = self
@@ -248,6 +259,11 @@ class MenuBarManager: NSObject {
 
     @objc private func quitApp() {
         NSApp.terminate(nil)
+    }
+
+    @objc private func openLyricsSource() {
+        guard let url = URL(string: AppInfo.lyricsSourceURL) else { return }
+        NSWorkspace.shared.open(url)
     }
 
     @objc private func changeTheme(_ sender: NSMenuItem) {
