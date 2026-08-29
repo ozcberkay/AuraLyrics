@@ -33,3 +33,10 @@ dist/
 # Local build scripts
 scripts/build_release.sh
 
+.planning/
+
+# Internal strategy docs (kept local, never pushed)
+docs/board/
+
+# Tool residue
+.bg-shell/
