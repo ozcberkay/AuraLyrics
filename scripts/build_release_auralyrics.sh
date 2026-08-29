@@ -2,7 +2,7 @@
 
 # Configuration
 APP_NAME="AuraLyrics"
-VERSION="1.1.0"          # single source of truth — written into Info.plist below
+VERSION="1.1.1"          # single source of truth — written into Info.plist below
 BUILD_DIR=".build/release"
 OUTPUT_DIR="dist"
 EXECUTABLE="$BUILD_DIR/$APP_NAME"
