@@ -42,7 +42,7 @@
       "price": "Free",
       "github": "https://github.com/auraworkshq/AuraLyrics",
       "language": "Swift",
-      "brew": "brew tap ozcberkay/tap && brew install --cask auralyrics",
+      "brew": "brew tap ozcberkay/tap && brew trust ozcberkay/tap && brew install --cask auralyrics",
       "downloadUrl": "https://github.com/auraworkshq/AuraLyrics/releases/latest",
       "requirements": "macOS 14.0 or later; Spotify desktop app",
       "features": [
