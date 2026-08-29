@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import CryptoKit
 import OSLog
 import SwiftUI
 
@@ -46,15 +47,27 @@ class LyricsManager: ObservableObject {
             .first?.appendingPathComponent("AuraLyrics", isDirectory: true)
     }
 
-    private func cacheFileURL(track: String, artist: String) -> URL? {
-        let safeKey = "\(track)---\(artist)"
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: ":", with: "_")
-        return cacheDirectory?.appendingPathComponent("\(safeKey).json")
+    /// Identifies one specific recording, not one song title.
+    ///
+    /// lrclib is queried with track, artist, album and duration, so a live take, a
+    /// remaster and the studio version of the same song return different lyrics and
+    /// different timings. Keying on title and artist alone made them share a single
+    /// cache entry, and whichever was played first won for all of them.
+    private func cacheKey(for state: PlaybackState) -> String {
+        "\(state.track)---\(state.artist)---\(state.album)---\(Int(state.duration))"
     }
 
-    private func saveLyricsToDisk(_ lines: [LyricsLine], track: String, artist: String) {
-        guard let fileURL = cacheFileURL(track: track, artist: artist),
+    /// Hashing keeps the filename short and legal whatever characters a title
+    /// contains — slashes, colons, and titles long enough to exceed the 255-byte
+    /// filename limit on their own.
+    private func cacheFileURL(forKey key: String) -> URL? {
+        let digest = SHA256.hash(data: Data(key.utf8))
+        let name = digest.map { String(format: "%02x", $0) }.joined()
+        return cacheDirectory?.appendingPathComponent("\(name).json")
+    }
+
+    private func saveLyricsToDisk(_ lines: [LyricsLine], key: String, track: String) {
+        guard let fileURL = cacheFileURL(forKey: key),
               let dir = cacheDirectory else { return }
         Task.detached(priority: .background) {
             do {
@@ -70,8 +83,8 @@ class LyricsManager: ObservableObject {
         }
     }
 
-    private func loadLyricsFromDisk(track: String, artist: String) -> [LyricsLine]? {
-        guard let fileURL = cacheFileURL(track: track, artist: artist) else { return nil }
+    private func loadLyricsFromDisk(key: String) -> [LyricsLine]? {
+        guard let fileURL = cacheFileURL(forKey: key) else { return nil }
         do {
             let data = try Data(contentsOf: fileURL)
             return try JSONDecoder().decode([LyricsLine].self, from: data)
@@ -158,7 +171,8 @@ class LyricsManager: ObservableObject {
 
     private func fetchLyrics(for playbackState: PlaybackState) {
         // CACH-01: Check in-memory cache first — instant hit for same-session track revisits
-        let cacheKey = "\(playbackState.track)---\(playbackState.artist)" as NSString
+        let key = cacheKey(for: playbackState)
+        let cacheKey = key as NSString
         if let cached = lyricsMemoryCache.object(forKey: cacheKey) {
             self.state = .loaded(cached.lines)
             if case .loaded(let lines) = self.state, self.lastState.isPlaying && !lines.isEmpty {
@@ -171,7 +185,7 @@ class LyricsManager: ObservableObject {
 
         Task {
             // CACH-02: Check disk cache before going to network — survives app relaunches
-            if let diskLines = self.loadLyricsFromDisk(track: playbackState.track, artist: playbackState.artist) {
+            if let diskLines = self.loadLyricsFromDisk(key: key) {
                 self.lyricsMemoryCache.setObject(CachedLyricsLines(diskLines), forKey: cacheKey)
                 self.state = .loaded(diskLines)
                 if case .loaded(let lines) = self.state, self.lastState.isPlaying && !lines.isEmpty {
@@ -191,7 +205,7 @@ class LyricsManager: ObservableObject {
 
                 // CACH-01/02: Populate both cache layers after successful network fetch
                 self.lyricsMemoryCache.setObject(CachedLyricsLines(fetchedLyrics), forKey: cacheKey)
-                self.saveLyricsToDisk(fetchedLyrics, track: playbackState.track, artist: playbackState.artist)
+                self.saveLyricsToDisk(fetchedLyrics, key: key, track: playbackState.track)
 
                 // TIMR-02: restart timer if we were waiting for lyrics to arrive
                 if case .loaded(let lines) = self.state, self.lastState.isPlaying && !lines.isEmpty {

@@ -87,9 +87,20 @@ class SpotifyService: ObservableObject {
     end tell
     """
 
+    /// Holds the compiled script so it can cross into the AppleScript queue.
+    ///
+    /// NSAppleScript is not thread-safe and not Sendable. Every execution goes through
+    /// `appleScriptQueue`, which is serial, so exactly one call touches the instance at
+    /// a time — a guarantee the compiler cannot derive on its own, hence `@unchecked`.
+    /// Nothing else may execute this script off that queue.
+    private final class CompiledScript: @unchecked Sendable {
+        let script: NSAppleScript
+        init(_ script: NSAppleScript) { self.script = script }
+    }
+
     // THRD-03: Compiled once on first use. lazy var init runs on @MainActor (XProtect-safe).
     // Subsequent executeAndReturnError calls skip recompilation.
-    private lazy var pollScript: NSAppleScript? = {
+    private lazy var pollScript: CompiledScript? = {
         let script = NSAppleScript(source: pollScriptSource)
         var compileError: NSDictionary?
         // Explicit compile — surfacing errors early rather than silently at runtime
@@ -98,7 +109,7 @@ class SpotifyService: ObservableObject {
             Logger.spotifyService.fault("Failed to compile AppleScript: \(String(describing: compileError), privacy: .public)")
             return nil
         }
-        return script
+        return script.map(CompiledScript.init)
     }()
 
     private init() {
@@ -166,30 +177,31 @@ class SpotifyService: ObservableObject {
     /// Executes the AppleScript to get the current state
     func fetchSpotifyState() {
         // THRD-03: reuse compiled instance — lazy init runs on @MainActor on first call
-        guard let script = pollScript else { return }
+        guard let compiled = pollScript else { return }
 
-        // THRD-02: dispatch execution to serial background queue — never blocks main thread
-        appleScriptQueue.async { [weak self] in
+        // THRD-02: dispatch execution to serial background queue — never blocks main thread.
+        // The closure runs the script and nothing else: the failure counter and the
+        // degraded flag are main-actor state, so they are only ever touched inside the
+        // Task below. Mutating them here raced with every main-thread read.
+        appleScriptQueue.async {
             var errorDict: NSDictionary?
-            let descriptor = script.executeAndReturnError(&errorDict)
+            let descriptor = compiled.script.executeAndReturnError(&errorDict)
+            let result: String? = errorDict == nil ? descriptor.stringValue : nil
 
-            // ERRH-03: accumulate consecutive failures; degrade after threshold
-            if errorDict != nil || descriptor.stringValue == nil {
-                self?.consecutiveAppleScriptFailures += 1
-                if let self = self,
-                   self.consecutiveAppleScriptFailures >= self.appleScriptFailureThreshold {
-                    Task { @MainActor [weak self] in
-                        self?.isDegraded = true
-                    }
-                }
-                return
-            }
-            self?.consecutiveAppleScriptFailures = 0  // reset on success
-            let stringResult = descriptor.stringValue!  // safe: checked above
-
-            // Dispatch result handling back to main actor
             Task { @MainActor [weak self] in
-                self?.handleAppleScriptResult(stringResult)
+                guard let self else { return }
+
+                // ERRH-03: accumulate consecutive failures; degrade after threshold
+                guard let result else {
+                    self.consecutiveAppleScriptFailures += 1
+                    if self.consecutiveAppleScriptFailures >= self.appleScriptFailureThreshold {
+                        self.isDegraded = true
+                    }
+                    return
+                }
+
+                self.consecutiveAppleScriptFailures = 0  // reset on success
+                self.handleAppleScriptResult(result)
             }
         }
     }
@@ -242,14 +254,17 @@ class SpotifyService: ObservableObject {
         var duration = Double(durationString) ?? 0.0
         var position = Double(positionString) ?? 0.0
 
-        // Normalize milliseconds to seconds
-        if duration > 10000 {
-            duration /= 1000
-        }
-        if position > 10000 && position > duration {
-             position /= 1000
-        } else if position > duration * 1000 {
-             position /= 1000
+        // Spotify's AppleScript reports duration in milliseconds and player position
+        // in seconds. Convert duration unconditionally rather than guessing from its
+        // magnitude — the old `duration > 10000` heuristic left tracks shorter than
+        // ten seconds (skits, intros, interludes) at their raw millisecond value, so
+        // the lyrics lookup asked lrclib for an 8000-second song and never matched.
+        duration /= 1000
+
+        // Position is already in seconds. Guard against a future Spotify build
+        // switching it to milliseconds, which would put it far past the track end.
+        if duration > 0 && position > duration * 10 {
+            position /= 1000
         }
 
         let stateString = parts[5]
