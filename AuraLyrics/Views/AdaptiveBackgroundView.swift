@@ -38,6 +38,9 @@ struct AdaptiveBackgroundView: View {
                         LinearGradient(gradient: Gradient(colors: [Color.blue.opacity(0.2), Color.purple.opacity(0.2)]), startPoint: .topLeading, endPoint: .bottomTrailing)
                     }
                 }
+                // Cross-fade between album colours instead of cutting to the new
+                // colour the instant the track changes.
+                .animation(.easeInOut(duration: 1.2), value: spotifyService.artworkAverageColor)
                 .onAppear {
                     withAnimation(.easeInOut(duration: 5.0).repeatForever(autoreverses: true)) {
                         animateGradient.toggle()
