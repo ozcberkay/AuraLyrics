@@ -50,7 +50,7 @@ swift run AuraLyrics
 
 Swift 5.9 / Xcode 15 or later. To produce a distributable `.app` and its SHA256, run `scripts/build_release_auralyrics.sh`.
 
-Note: the code targets Swift 5 language mode. It has not been audited for Swift 6 strict concurrency and does not compile cleanly under it yet — `SpotifyService` is the main offender.
+Note: the code targets Swift 5 language mode. It builds without warnings under `-strict-concurrency=complete`. Full Swift 6 language mode still reports one error — `LyricsFetcher` is not `Sendable`, so passing it into a `Task` from `LyricsManager` is rejected.
 
 ## Lyrics, privacy and legal
 
