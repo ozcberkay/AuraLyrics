@@ -134,4 +134,50 @@ final class SpotifyServiceTests: XCTestCase {
         XCTAssertTrue(source.contains("url.scheme == \"https\""),
                       "ERRH-04: HTTPS scheme check must be present")
     }
+
+    // The failure counter and the degraded flag are @MainActor state. Mutating them
+    // from inside appleScriptQueue.async raced with every main-thread read of the same
+    // properties, and produced four warnings in a plain build.
+    func testFailureCounterIsOnlyTouchedOnMainActor() throws {
+        let sourceURL = URL(fileURLWithPath: #file)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("AuraLyrics/Services/SpotifyService.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+
+        guard let queueBlock = source.range(of: "appleScriptQueue.async"),
+              let taskHop = source.range(of: "Task { @MainActor [weak self] in", range: queueBlock.upperBound..<source.endIndex) else {
+            return XCTFail("Expected the AppleScript queue block to hop to the main actor")
+        }
+        let beforeHop = String(source[queueBlock.upperBound..<taskHop.lowerBound])
+        XCTAssertFalse(
+            beforeHop.contains("consecutiveAppleScriptFailures"),
+            "The failure counter must not be touched on the AppleScript queue — only after the main-actor hop"
+        )
+        XCTAssertFalse(
+            beforeHop.contains("isDegraded"),
+            "isDegraded must not be set on the AppleScript queue"
+        )
+    }
+
+    // Spotify reports duration in milliseconds for every track. The old heuristic only
+    // converted when the value exceeded 10000, so tracks under ten seconds kept their
+    // raw millisecond duration and never matched anything in lrclib.
+    func testDurationIsConvertedUnconditionally() throws {
+        let sourceURL = URL(fileURLWithPath: #file)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("AuraLyrics/Services/SpotifyService.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        XCTAssertFalse(
+            source.contains("if duration > 10000"),
+            "Duration must not be converted by magnitude guess — short tracks broke the lyrics lookup"
+        )
+        XCTAssertTrue(
+            source.contains("duration /= 1000"),
+            "Duration must be converted from milliseconds to seconds"
+        )
+    }
 }

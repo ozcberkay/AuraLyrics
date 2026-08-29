@@ -104,4 +104,35 @@ final class CachingTests: XCTestCase {
         XCTAssertFalse(containsHostingViewInUpdateMenu,
                        "PERF-02: updateMenu() must not rebuild NSHostingView(rootView:) on every call — host view should be created once and reused (Plan 03)")
     }
+
+    // MARK: - Cache key identifies a recording, not a song title
+
+    /// A live take, a remaster and the studio version of one song share a title and an
+    /// artist but return different lyrics and timings from lrclib, which is queried with
+    /// album and duration too. Keying on title and artist alone made them collide.
+    func testCacheKeyIncludesAlbumAndDuration() throws {
+        let source = try String(contentsOf: sourcePath("AuraLyrics/Services/LyricsManager.swift"), encoding: .utf8)
+        XCTAssertTrue(
+            source.contains("func cacheKey(for state: PlaybackState)"),
+            "LyricsManager must build its cache key in one place"
+        )
+        XCTAssertTrue(
+            source.contains("state.album") && source.contains("Int(state.duration)"),
+            "Cache key must include album and duration, or different recordings of the same song collide"
+        )
+        XCTAssertFalse(
+            source.contains("\"\\(playbackState.track)---\\(playbackState.artist)\""),
+            "The old title+artist-only cache key must not come back"
+        )
+    }
+
+    /// Track titles contain slashes, colons and, occasionally, enough characters to blow
+    /// past the 255-byte filename limit. Hashing sidesteps all of it.
+    func testDiskCacheFilenameIsHashed() throws {
+        let source = try String(contentsOf: sourcePath("AuraLyrics/Services/LyricsManager.swift"), encoding: .utf8)
+        XCTAssertTrue(
+            source.contains("import CryptoKit") && source.contains("SHA256.hash"),
+            "Disk cache filenames must be hashed rather than sanitised by hand"
+        )
+    }
 }

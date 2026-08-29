@@ -16,7 +16,10 @@ private extension URLError {
     }
 }
 
-class LyricsFetcher {
+// Sendable: the only stored property is an immutable String, so instances are safe
+// to hand to a Task. Without this, Swift 6 language mode rejects LyricsManager
+// passing `fetcher` across an isolation boundary.
+final class LyricsFetcher: Sendable {
     private let baseURL = "https://lrclib.net/api/get"
 
     // NETW-04: retry helper — retries only on transient URLErrors; non-transient and non-URL errors
