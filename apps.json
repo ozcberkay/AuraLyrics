@@ -1,0 +1,51 @@
+{
+  "$schema": "https://wvw.dev/apps.schema.json",
+  "store": {
+    "name": "AuraWorkshq",
+    "developer": "Berkay Ozcan",
+    "tagline": "Minimalist macOS apps.",
+    "github": "https://github.com/auraworkshq"
+  },
+  "categories": [
+    { "id": "macos", "name": "macOS Apps" },
+    { "id": "music", "name": "Music" },
+    { "id": "utilities", "name": "Utilities" }
+  ],
+  "apps": [
+    {
+      "id": "auralyrics",
+      "name": "AuraLyrics",
+      "subtitle": "Floating Spotify lyrics for macOS",
+      "description": "Minimalist, always-on-top lyrics window for Spotify with menu bar controls.",
+      "longDescription": "AuraLyrics displays real-time synchronized lyrics in a beautiful floating window on macOS. It integrates with the menu bar for playback control and works with Spotify via AppleScript — no API keys required. Features Aura mode for ambient album art display, adaptive theming, and zero external dependencies.",
+      "icon": "https://raw.githubusercontent.com/auraworkshq/AuraLyrics/main/assets/icon.png",
+      "iconStyle": {
+        "scale": 1.2,
+        "objectFit": "cover",
+        "borderRadius": "22%"
+      },
+      "category": ["macos", "music", "utilities"],
+      "platform": "macOS",
+      "price": "Free",
+      "github": "https://github.com/auraworkshq/AuraLyrics",
+      "language": "Swift",
+      "brew": "brew tap ozcberkay/tap && brew install --cask auralyrics",
+      "downloadUrl": "https://github.com/auraworkshq/AuraLyrics/releases/latest",
+      "requirements": "macOS 14.0 or later",
+      "features": [
+        "Always-on-top floating lyrics window",
+        "Menu bar Spotify playback controls",
+        "Real-time synchronized lyrics",
+        "Aura mode — ambient album art background",
+        "Adaptive themes (dark aura, minimalist)",
+        "Zero Spotify API credentials needed",
+        "Two-layer lyrics cache for instant display"
+      ],
+      "screenshots": [
+        "https://raw.githubusercontent.com/auraworkshq/AuraLyrics/main/assets/screenshots/lyrics-view.png",
+        "https://raw.githubusercontent.com/auraworkshq/AuraLyrics/main/assets/screenshots/aura-view.png",
+        "https://raw.githubusercontent.com/auraworkshq/AuraLyrics/main/assets/screenshots/menu-bar.png"
+      ]
+    }
+  ]
+}
