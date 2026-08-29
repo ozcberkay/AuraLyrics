@@ -50,7 +50,7 @@ swift run AuraLyrics
 
 Swift 5.9 / Xcode 15 or later. To produce a distributable `.app` and its SHA256, run `scripts/build_release_auralyrics.sh`.
 
-Note: the code targets Swift 5 language mode. It builds without warnings under `-strict-concurrency=complete`. Full Swift 6 language mode still reports one error — `LyricsFetcher` is not `Sendable`, so passing it into a `Task` from `LyricsManager` is rejected.
+The package targets Swift 5 language mode and builds with zero warnings. It also compiles under full Swift 6 language mode. Building Swift 5 with `-strict-concurrency=complete` still reports diagnostics in `WindowManager` about calling main-actor `NSWindow` methods from a nonisolated context; Swift 6's region-based isolation analysis accepts the same code, so these are not tracked as defects.
 
 ## Lyrics, privacy and legal
 
