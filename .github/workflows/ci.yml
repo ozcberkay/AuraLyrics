@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# A second push to the same pull request cancels the run still in flight,
+# so the queue never fills with results nobody will read.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Build and test
+    runs-on: macos-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Report the toolchain
+        run: swift --version
+
+      - name: Build
+        run: swift build --build-tests
+
+      - name: Test
+        run: swift test
+
+  swift6:
+    name: Swift 6 language mode
+    runs-on: macos-latest
+    timeout-minutes: 20
+
+    # The README claims the package compiles under full Swift 6 language mode.
+    # This job is what keeps that claim honest.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build in Swift 6 language mode
+        run: swift build -Xswiftc -swift-version -Xswiftc 6
