@@ -6,7 +6,7 @@ import Foundation
 /// `scripts/build_release_auralyrics.sh` writes into `Info.plist`. Plain `swift run`
 /// builds have no Info.plist, so they report "dev".
 enum AppInfo {
-    static let repositoryURL = "https://github.com/auraworkshq/AuraLyrics"
+    static let repositoryURL = "https://github.com/ozcberkay/AuraLyrics"
 
     static let version: String =
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"

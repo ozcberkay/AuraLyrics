@@ -4,7 +4,7 @@
     "name": "AuraWorks",
     "developer": "Berkay Özcan",
     "tagline": "Minimalist macOS apps.",
-    "github": "https://github.com/auraworkshq"
+    "github": "https://github.com/ozcberkay"
   },
   "categories": [
     {
@@ -27,7 +27,7 @@
       "subtitle": "Floating Spotify lyrics for macOS",
       "description": "Floating, always-on-top synced lyrics for Spotify, with menu bar controls.",
       "longDescription": "AuraLyrics shows synced lyrics in a floating window on macOS. It reads playback from the Spotify desktop app through Spotify's own scripting interface, so there are no API keys and no account, and looks lyrics up in the LRCLIB community database. Aura mode puts three borderless lines over your work, with the colour of the album art on the words rather than behind them. The lyrics view spreads the same colour into a background behind the whole song. Native Swift and SwiftUI, no third-party libraries, no telemetry.",
-      "icon": "https://raw.githubusercontent.com/auraworkshq/AuraLyrics/main/assets/icon.png",
+      "icon": "https://raw.githubusercontent.com/ozcberkay/AuraLyrics/main/assets/icon.png",
       "iconStyle": {
         "scale": 1.2,
         "objectFit": "cover",
@@ -40,10 +40,10 @@
       ],
       "platform": "macOS",
       "price": "Free",
-      "github": "https://github.com/auraworkshq/AuraLyrics",
+      "github": "https://github.com/ozcberkay/AuraLyrics",
       "language": "Swift",
       "brew": "brew install --cask ozcberkay/tap/auralyrics",
-      "downloadUrl": "https://github.com/auraworkshq/AuraLyrics/releases/latest",
+      "downloadUrl": "https://github.com/ozcberkay/AuraLyrics/releases/latest",
       "requirements": "macOS 14.0 or later; Spotify desktop app",
       "features": [
         "Aura mode: three borderless lines with an album-coloured halo",
@@ -55,9 +55,9 @@
         "No accounts, no API keys, no telemetry"
       ],
       "screenshots": [
-        "https://raw.githubusercontent.com/auraworkshq/AuraLyrics/main/assets/aura-mode.gif",
-        "https://raw.githubusercontent.com/auraworkshq/AuraLyrics/main/assets/lyrics-mode.gif",
-        "https://raw.githubusercontent.com/auraworkshq/AuraLyrics/main/assets/screenshots/menu-bar.png"
+        "https://raw.githubusercontent.com/ozcberkay/AuraLyrics/main/assets/aura-mode.gif",
+        "https://raw.githubusercontent.com/ozcberkay/AuraLyrics/main/assets/lyrics-mode.gif",
+        "https://raw.githubusercontent.com/ozcberkay/AuraLyrics/main/assets/screenshots/menu-bar.png"
       ]
     }
   ]
