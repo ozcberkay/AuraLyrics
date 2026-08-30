@@ -70,7 +70,7 @@ final class LyricsFetcherTests: XCTestCase {
             .appendingPathComponent("AuraLyrics/Models/AppInfo.swift")
         let source = try String(contentsOf: sourceURL, encoding: .utf8)
         XCTAssertTrue(
-            source.contains("github.com/auraworkshq/AuraLyrics"),
+            source.contains("github.com/ozcberkay/AuraLyrics"),
             "AppInfo must expose a contactable repository URL for the User-Agent"
         )
         XCTAssertTrue(
