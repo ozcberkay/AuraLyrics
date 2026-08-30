@@ -26,7 +26,7 @@
       "name": "AuraLyrics",
       "subtitle": "Floating Spotify lyrics for macOS",
       "description": "Minimalist, always-on-top lyrics window for Spotify with menu bar controls.",
-      "longDescription": "AuraLyrics displays real-time synchronized lyrics in a floating window on macOS. It reads playback state from the Spotify desktop app through Spotify's own scripting interface — no API keys or accounts — and looks lyrics up in the LRCLIB community database. Aura mode fills the window with an ambient background that takes its colour from the album art. Native Swift and SwiftUI, no third-party libraries, no telemetry.",
+      "longDescription": "AuraLyrics displays real-time synchronized lyrics in a floating window on macOS. It reads playback state from the Spotify desktop app through Spotify's own scripting interface — no API keys or accounts — and looks lyrics up in the LRCLIB community database. The lyrics view paints an ambient background coloured by the album art; Aura mode strips it to three borderless lines floating over your work. Native Swift and SwiftUI, no third-party libraries, no telemetry.",
       "icon": "https://raw.githubusercontent.com/auraworkshq/AuraLyrics/main/assets/icon.png",
       "iconStyle": {
         "scale": 1.2,
@@ -47,10 +47,10 @@
       "requirements": "macOS 14.0 or later; Spotify desktop app",
       "features": [
         "Always-on-top floating lyrics window",
-        "Aura mode — ambient background coloured by the album art",
+        "Ambient background coloured by the album art",
+        "Aura mode — three borderless lines over your work",
         "Menu bar Spotify playback controls",
         "Real-time synchronized lyrics from LRCLIB",
-        "Adaptive, dark aura and minimalist themes",
         "Two-layer cache for instant repeat playback",
         "No accounts, no API keys, no telemetry"
       ],

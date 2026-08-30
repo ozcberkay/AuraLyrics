@@ -25,8 +25,8 @@ Homebrew is the recommended route: the cask clears the quarantine flag, so the a
 
 ## Features
 
-- **Always-on-top floating window** — lyrics stay visible over other apps, borderless and distraction-free.
-- **Aura mode** — an ambient background that takes its colour from the album art and cross-fades as tracks change.
+- **Two views, one keystroke apart.** The lyrics view scrolls the whole song and paints an ambient background that takes its colour from the album art, cross-fading as tracks change. Aura mode strips it to three borderless lines — previous, current, next — floating over whatever you are working on, with no background at all.
+- **Always-on-top** — both views stay visible over other apps.
 - **Synchronized lyrics** — time-synced where available, plain text as a fallback.
 - **Menu bar controls** — play/pause, next, previous, current track, theme and size.
 - **Two-layer cache** — memory and disk, so a song you have already played appears instantly.
