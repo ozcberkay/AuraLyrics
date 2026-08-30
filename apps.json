@@ -25,8 +25,8 @@
       "id": "auralyrics",
       "name": "AuraLyrics",
       "subtitle": "Floating Spotify lyrics for macOS",
-      "description": "Minimalist, always-on-top lyrics window for Spotify with menu bar controls.",
-      "longDescription": "AuraLyrics displays real-time synchronized lyrics in a floating window on macOS. It reads playback state from the Spotify desktop app through Spotify's own scripting interface — no API keys or accounts — and looks lyrics up in the LRCLIB community database. Aura mode shows three borderless lines with a halo drawn from the album artwork; the lyrics view spreads the same colour into an ambient background. Native Swift and SwiftUI, no third-party libraries, no telemetry.",
+      "description": "Floating, always-on-top synced lyrics for Spotify, with menu bar controls.",
+      "longDescription": "AuraLyrics shows synced lyrics in a floating window on macOS. It reads playback from the Spotify desktop app through Spotify's own scripting interface, so there are no API keys and no account, and looks lyrics up in the LRCLIB community database. Aura mode puts three borderless lines over your work, with the colour of the album art on the words rather than behind them. The lyrics view spreads the same colour into a background behind the whole song. Native Swift and SwiftUI, no third-party libraries, no telemetry.",
       "icon": "https://raw.githubusercontent.com/auraworkshq/AuraLyrics/main/assets/icon.png",
       "iconStyle": {
         "scale": 1.2,
@@ -46,11 +46,11 @@
       "downloadUrl": "https://github.com/auraworkshq/AuraLyrics/releases/latest",
       "requirements": "macOS 14.0 or later; Spotify desktop app",
       "features": [
-        "Aura mode — three borderless lines with an album-coloured halo",
-        "Lyrics view — full song over an ambient album-coloured background",
+        "Aura mode: three borderless lines with an album-coloured halo",
+        "Lyrics view: full song over an album-coloured background",
         "Always-on-top floating window",
         "Menu bar Spotify playback controls",
-        "Real-time synchronized lyrics from LRCLIB",
+        "Synced lyrics from LRCLIB",
         "Two-layer cache for instant repeat playback",
         "No accounts, no API keys, no telemetry"
       ],
