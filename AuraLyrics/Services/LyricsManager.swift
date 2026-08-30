@@ -133,8 +133,11 @@ class LyricsManager: ObservableObject {
             return
         }
 
-        // Find the line where startTime <= currentPosition
-        let matchingLine = lines.last { $0.startTime <= currentPosition }
+        // Find the line where startTime <= currentPosition.
+        // Blank entries are skipped: LRC files mark instrumental gaps with empty lines, and
+        // landing on one blanks out the middle of Aura mode. Holding the last sung line is
+        // what every other lyrics player does through a break.
+        let matchingLine = lines.last { $0.startTime <= currentPosition && !$0.text.isEmpty }
 
         if activeLineID != matchingLine?.id {
             withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
