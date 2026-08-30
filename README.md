@@ -50,7 +50,7 @@ Spotify only. Apple Music already shows lyrics in the Music app, and supporting 
 ## Development
 
 ```bash
-git clone https://github.com/auraworkshq/AuraLyrics.git
+git clone https://github.com/ozcberkay/AuraLyrics.git
 cd AuraLyrics
 swift build
 swift test
@@ -75,7 +75,7 @@ Rights holders: for a takedown or correction about lyrics content, open an issue
 
 Berkay Özcan writes and maintains AuraLyrics. AuraWorks is the name the work is published under.
 
-Bug reports and questions are welcome in [Issues](https://github.com/auraworkshq/AuraLyrics/issues). Other projects are at [auraworks.dev](https://auraworks.dev), and you can reach me at <hello@auraworks.dev>.
+Bug reports and questions are welcome in [Issues](https://github.com/ozcberkay/AuraLyrics/issues). Other projects are at [auraworks.dev](https://auraworks.dev), and you can reach me at <hello@auraworks.dev>.
 
 ## License
 
