@@ -1,5 +1,7 @@
 # AuraLyrics
 
+[![CI](https://github.com/ozcberkay/AuraLyrics/actions/workflows/ci.yml/badge.svg)](https://github.com/ozcberkay/AuraLyrics/actions/workflows/ci.yml)
+
 Floating, always-on-top synced lyrics for Spotify on macOS. Native Swift and SwiftUI, no third-party libraries, no Spotify API keys.
 
 Made by [Berkay Özcan](https://auraworks.dev).
@@ -75,7 +77,7 @@ Rights holders: for a takedown or correction about lyrics content, open an issue
 
 Berkay Özcan writes and maintains AuraLyrics. AuraWorks is the name the work is published under.
 
-Bug reports and questions are welcome in [Issues](https://github.com/ozcberkay/AuraLyrics/issues). Other projects are at [auraworks.dev](https://auraworks.dev), and you can reach me at <hello@auraworks.dev>.
+Bug reports and questions are welcome in [Issues](https://github.com/ozcberkay/AuraLyrics/issues) — see [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Security problems go to <hello@auraworks.dev> instead of Issues; [SECURITY.md](SECURITY.md) says what is in scope. Other projects are at [auraworks.dev](https://auraworks.dev).
 
 ## License
 
