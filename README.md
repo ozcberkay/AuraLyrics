@@ -13,12 +13,10 @@ Floating, always-on-top synchronized lyrics for Spotify on macOS. Native Swift a
 ## Install
 
 ```bash
-brew tap ozcberkay/tap
-brew trust ozcberkay/tap
-brew install --cask auralyrics
+brew install --cask ozcberkay/tap/auralyrics
 ```
 
-Homebrew is the recommended route: the cask clears the quarantine flag, so the app just opens. Homebrew 6 refuses to load casks from third-party taps until you trust them, which is what the middle line does — skip it and the install stops with "Refusing to load cask ... from untrusted tap".
+Homebrew is the recommended route: the cask clears the quarantine flag, so the app just opens. Naming the tap in full is what makes this a single command — Homebrew taps it and trusts that one cask because you asked for it by name. `brew tap` first, then `brew install --cask auralyrics`, needs an extra `brew trust ozcberkay/tap` in between.
 
 **Downloading the archive instead?** Releases are signed ad-hoc, not notarized, so macOS blocks the first launch. Open the app once, then go to **System Settings → Privacy & Security** and click **Open Anyway** next to the AuraLyrics warning. (Right-click → Open no longer bypasses this on macOS 15 and later.)
 
