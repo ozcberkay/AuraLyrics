@@ -2,6 +2,8 @@
 
 Floating, always-on-top synchronized lyrics for Spotify on macOS. Native Swift and SwiftUI, no third-party libraries, and no Spotify API keys to set up.
 
+A side project by [Berkay Özcan](https://auraworks.dev), written because reading a lyric should not mean bringing Spotify to the front.
+
 ![Aura mode: three borderless lines of lyrics floating over the desktop, each active line ringed by a halo in the colour of the album art](assets/aura-mode.gif)
 
 **Aura mode** — three lines, no window, nothing to look at but the words. The halo around the current line is drawn from the album artwork and cross-fades when the track changes.
@@ -65,6 +67,14 @@ What leaves your machine: the track name, artist, album and duration of the song
 AuraLyrics is an independent project and is not affiliated with, endorsed by, or sponsored by Spotify or LRCLIB. It reads playback state through Spotify's own scripting interface and never handles your Spotify credentials.
 
 Rights holders: for a takedown or correction request about lyrics content, open an issue on this repository — note that the content itself is served by lrclib.net, not by this app.
+
+## Who makes this
+
+AuraLyrics is written and maintained by **Berkay Özcan** — one person, not a company. AuraWorks is the name the projects
+are published under; there is nobody else behind it.
+
+Bug reports and questions are welcome in [Issues](https://github.com/auraworkshq/AuraLyrics/issues). Other work is at
+[auraworks.dev](https://auraworks.dev), and reaching me directly works at <hello@auraworks.dev>.
 
 ## License
 
