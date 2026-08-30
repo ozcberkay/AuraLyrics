@@ -55,4 +55,19 @@ final class LyricsManagerTests: XCTestCase {
             "ERRH-02: LyricsManager fetchLyrics must catch LyricsError.instrumental and set .instrumental state"
         )
     }
+
+    /// LRC files mark instrumental breaks with blank timestamped lines. Selecting one as the
+    /// active line blanks the middle of Aura mode, which reads as a broken app.
+    func testActiveLineSkipsBlankEntries() throws {
+        let sourceURL = URL(fileURLWithPath: #file)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("AuraLyrics/Services/LyricsManager.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        XCTAssertTrue(
+            source.contains("$0.startTime <= currentPosition && !$0.text.isEmpty"),
+            "updateActiveLine must skip blank lyric lines so a gap holds the last sung line"
+        )
+    }
 }

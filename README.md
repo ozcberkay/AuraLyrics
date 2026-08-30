@@ -2,7 +2,13 @@
 
 Floating, always-on-top synchronized lyrics for Spotify on macOS. Native Swift and SwiftUI, no third-party libraries, and no Spotify API keys to set up.
 
-![AuraLyrics](assets/banner.svg)
+![Aura mode: three borderless lines of lyrics floating over the desktop, each active line ringed by a halo in the colour of the album art](assets/aura-mode.gif)
+
+**Aura mode** — three lines, no window, nothing to look at but the words. The halo around the current line is drawn from the album artwork and cross-fades when the track changes.
+
+![Lyrics view: the full song scrolling over an ambient background that shifts from blue to gold to orange as tracks change](assets/lyrics-mode.gif)
+
+**Lyrics view** — the whole song, with the same album colour spread into an ambient background.
 
 ## Install
 
@@ -25,7 +31,7 @@ Homebrew is the recommended route: the cask clears the quarantine flag, so the a
 
 ## Features
 
-- **Two views, one keystroke apart.** The lyrics view scrolls the whole song and paints an ambient background that takes its colour from the album art, cross-fading as tracks change. Aura mode strips it to three borderless lines — previous, current, next — floating over whatever you are working on, with no background at all.
+- **Two views, one keystroke apart.** The lyrics view scrolls the whole song over an ambient background coloured by the album art. Aura mode strips it to three borderless lines — previous, current, next — floating over whatever you are working on, with the album colour reduced to a halo on the words themselves so it never covers your screen.
 - **Always-on-top** — both views stay visible over other apps.
 - **Synchronized lyrics** — time-synced where available, plain text as a fallback.
 - **Menu bar controls** — play/pause, next, previous, current track, theme and size.

@@ -26,7 +26,7 @@
       "name": "AuraLyrics",
       "subtitle": "Floating Spotify lyrics for macOS",
       "description": "Minimalist, always-on-top lyrics window for Spotify with menu bar controls.",
-      "longDescription": "AuraLyrics displays real-time synchronized lyrics in a floating window on macOS. It reads playback state from the Spotify desktop app through Spotify's own scripting interface — no API keys or accounts — and looks lyrics up in the LRCLIB community database. The lyrics view paints an ambient background coloured by the album art; Aura mode strips it to three borderless lines floating over your work. Native Swift and SwiftUI, no third-party libraries, no telemetry.",
+      "longDescription": "AuraLyrics displays real-time synchronized lyrics in a floating window on macOS. It reads playback state from the Spotify desktop app through Spotify's own scripting interface — no API keys or accounts — and looks lyrics up in the LRCLIB community database. Aura mode shows three borderless lines with a halo drawn from the album artwork; the lyrics view spreads the same colour into an ambient background. Native Swift and SwiftUI, no third-party libraries, no telemetry.",
       "icon": "https://raw.githubusercontent.com/auraworkshq/AuraLyrics/main/assets/icon.png",
       "iconStyle": {
         "scale": 1.2,
@@ -46,17 +46,17 @@
       "downloadUrl": "https://github.com/auraworkshq/AuraLyrics/releases/latest",
       "requirements": "macOS 14.0 or later; Spotify desktop app",
       "features": [
-        "Always-on-top floating lyrics window",
-        "Ambient background coloured by the album art",
-        "Aura mode — three borderless lines over your work",
+        "Aura mode — three borderless lines with an album-coloured halo",
+        "Lyrics view — full song over an ambient album-coloured background",
+        "Always-on-top floating window",
         "Menu bar Spotify playback controls",
         "Real-time synchronized lyrics from LRCLIB",
         "Two-layer cache for instant repeat playback",
         "No accounts, no API keys, no telemetry"
       ],
       "screenshots": [
-        "https://raw.githubusercontent.com/auraworkshq/AuraLyrics/main/assets/screenshots/lyrics-view.png",
-        "https://raw.githubusercontent.com/auraworkshq/AuraLyrics/main/assets/screenshots/aura-view.png",
+        "https://raw.githubusercontent.com/auraworkshq/AuraLyrics/main/assets/aura-mode.gif",
+        "https://raw.githubusercontent.com/auraworkshq/AuraLyrics/main/assets/lyrics-mode.gif",
         "https://raw.githubusercontent.com/auraworkshq/AuraLyrics/main/assets/screenshots/menu-bar.png"
       ]
     }

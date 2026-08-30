@@ -32,7 +32,8 @@ class WindowManager: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 height: initialSize.windowHeight
             ),
             backing: .buffered,
-            defer: false
+            defer: false,
+            drawsShadow: false   // transparent content — a window shadow would outline the glyphs
         )
         auraP.contentView = NSHostingView(rootView: AuraView())
         // auraP.makeKeyAndOrderFront(nil) // Start hidden

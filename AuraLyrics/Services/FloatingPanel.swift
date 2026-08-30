@@ -2,7 +2,12 @@ import AppKit
 import SwiftUI
 
 class FloatingPanel: NSPanel {
-    init(contentRect: NSRect, backing: NSWindow.BackingStoreType, defer flag: Bool) {
+    /// - Parameter drawsShadow: A borderless panel derives its shadow from the *alpha silhouette*
+    ///   of its content, not from its frame. That is what you want for the lyrics panel, which is
+    ///   an opaque rounded card. For a panel whose content is transparent text, macOS traces a
+    ///   dark contour around every glyph and around any blurred glow behind them — so Aura mode
+    ///   passes `false`.
+    init(contentRect: NSRect, backing: NSWindow.BackingStoreType, defer flag: Bool, drawsShadow: Bool = true) {
         super.init(
             contentRect: contentRect,
             styleMask: [.borderless, .nonactivatingPanel, .resizable, .fullSizeContentView],
@@ -17,7 +22,7 @@ class FloatingPanel: NSPanel {
         self.titlebarAppearsTransparent = true
         self.backgroundColor = .clear
         self.isMovableByWindowBackground = true
-        self.hasShadow = true
+        self.hasShadow = drawsShadow
     }
     
     override var canBecomeKey: Bool {

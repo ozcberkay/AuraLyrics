@@ -14,6 +14,13 @@ struct AuraView: View {
     // Dynamic size properties from AuraSizeManager
     private var currentSize: AuraSize { sizeManager.currentSize }
 
+    /// Album-coloured halo for the active line. Aura mode sits over whatever the user is
+    /// working on, so the colour is attached to the glyphs rather than washed across a
+    /// background: it adds identity without covering another pixel of their screen.
+    private var halo: Color {
+        AuraHalo.color(from: spotifyService.artworkAverageColor) ?? .white
+    }
+
     var body: some View {
         ZStack {
             // Completely transparent background
@@ -50,29 +57,28 @@ struct AuraView: View {
                         // PREVIOUS LINE
                         if index > 0 {
                             let prevLine = lines[index - 1]
-                            Text(prevLine.text)
-                                .font(.system(size: currentSize.inactiveFontSize, weight: .semibold, design: .rounded))
-                                .foregroundStyle(inactiveColor)
+                            HaloLine(text: prevLine.text,
+                                     font: .system(size: currentSize.inactiveFontSize, weight: .semibold, design: .rounded),
+                                     color: inactiveColor,
+                                     halo: halo,
+                                     glowRadius: 7 * currentSize.scaleFactor,
+                                     glowOpacity: 0.22,
+                                     lineLimit: 1, minScale: 0.8, textBlur: 1)
                                 .scaleEffect(inactiveScale)
-                                .blur(radius: 1)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
                                 .frame(minHeight: currentSize.inactiveLineHeight)
                                 .transition(.opacity)
-                                .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
                         } else {
                             Spacer().frame(height: currentSize.inactiveLineHeight)
                         }
 
                         // CURRENT LINE
-                        Text(lines[index].text)
-                            .font(.system(size: currentSize.activeFontSize, weight: .heavy, design: .rounded))
-                            .foregroundStyle(activeColor)
+                        HaloLine(text: lines[index].text,
+                                 font: .system(size: currentSize.activeFontSize, weight: .heavy, design: .rounded),
+                                 color: activeColor,
+                                 halo: halo,
+                                 glowRadius: 12 * currentSize.scaleFactor,
+                                 glowOpacity: 0.95)
                             .scaleEffect(activeScale)
-                            .shadow(color: .black, radius: 2, x: 0, y: 2)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.6)
-                            .multilineTextAlignment(.center)
                             .frame(minHeight: currentSize.activeLineHeight)
                             .padding(.vertical, 4 * currentSize.scaleFactor)
                             .transition(.scale)
@@ -81,16 +87,16 @@ struct AuraView: View {
                         // NEXT LINE
                         if index < lines.count - 1 {
                             let nextLine = lines[index + 1]
-                            Text(nextLine.text)
-                                .font(.system(size: currentSize.inactiveFontSize, weight: .semibold, design: .rounded))
-                                .foregroundStyle(inactiveColor)
+                            HaloLine(text: nextLine.text,
+                                     font: .system(size: currentSize.inactiveFontSize, weight: .semibold, design: .rounded),
+                                     color: inactiveColor,
+                                     halo: halo,
+                                     glowRadius: 7 * currentSize.scaleFactor,
+                                     glowOpacity: 0.22,
+                                     lineLimit: 1, minScale: 0.8, textBlur: 1)
                                 .scaleEffect(inactiveScale)
-                                .blur(radius: 1)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
                                 .frame(minHeight: currentSize.inactiveLineHeight)
                                 .transition(.opacity)
-                                .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
                         } else {
                             Spacer().frame(height: currentSize.inactiveLineHeight)
                         }
@@ -99,12 +105,14 @@ struct AuraView: View {
                         // --- INTRO / INFO MODE (No active line yet) ---
                         if !spotifyService.currentState.track.isEmpty {
                             VStack(spacing: 4 * currentSize.scaleFactor) {
-                                Text(spotifyService.currentState.track)
-                                    .font(.system(size: currentSize.trackTitleFontSize, weight: .bold, design: .rounded))
-                                    .foregroundStyle(.white)
-                                    .lineLimit(1)
+                                HaloLine(text: spotifyService.currentState.track,
+                                         font: .system(size: currentSize.trackTitleFontSize, weight: .bold, design: .rounded),
+                                         color: .white,
+                                         halo: halo,
+                                         glowRadius: 10 * currentSize.scaleFactor,
+                                         glowOpacity: 0.85,
+                                         lineLimit: 1, minScale: 0.8)
                                     .padding(.horizontal, 20 * currentSize.scaleFactor)
-                                    .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
 
                                 Text(spotifyService.currentState.artist)
                                     .font(.system(size: currentSize.artistFontSize, weight: .medium, design: .rounded))
@@ -132,12 +140,14 @@ struct AuraView: View {
                 case .notFound(let track, let artist):
                     // ERRH-01: show track info + "No lyrics available" in Aura mode
                     VStack(spacing: 4 * currentSize.scaleFactor) {
-                        Text(track)
-                            .font(.system(size: currentSize.trackTitleFontSize, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
-                            .lineLimit(1)
+                        HaloLine(text: track,
+                                 font: .system(size: currentSize.trackTitleFontSize, weight: .bold, design: .rounded),
+                                 color: .white,
+                                 halo: halo,
+                                 glowRadius: 10 * currentSize.scaleFactor,
+                                 glowOpacity: 0.85,
+                                 lineLimit: 1, minScale: 0.8)
                             .padding(.horizontal, 20 * currentSize.scaleFactor)
-                            .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
                         Text(artist)
                             .font(.system(size: currentSize.artistFontSize, weight: .medium, design: .rounded))
                             .foregroundStyle(.white.opacity(0.7))
@@ -154,12 +164,14 @@ struct AuraView: View {
                         Image(systemName: "music.note")
                             .font(.system(size: currentSize.activeFontSize * 0.8))
                             .foregroundStyle(.white.opacity(0.6))
-                        Text(track)
-                            .font(.system(size: currentSize.trackTitleFontSize, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
-                            .lineLimit(1)
+                        HaloLine(text: track,
+                                 font: .system(size: currentSize.trackTitleFontSize, weight: .bold, design: .rounded),
+                                 color: .white,
+                                 halo: halo,
+                                 glowRadius: 10 * currentSize.scaleFactor,
+                                 glowOpacity: 0.85,
+                                 lineLimit: 1, minScale: 0.8)
                             .padding(.horizontal, 20 * currentSize.scaleFactor)
-                            .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
                         Text(artist)
                             .font(.system(size: currentSize.artistFontSize, weight: .medium, design: .rounded))
                             .foregroundStyle(.white.opacity(0.7))
@@ -180,12 +192,14 @@ struct AuraView: View {
                     // Not playing / waiting for track
                     if !spotifyService.currentState.track.isEmpty {
                         VStack(spacing: 4 * currentSize.scaleFactor) {
-                            Text(spotifyService.currentState.track)
-                                .font(.system(size: currentSize.trackTitleFontSize, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white)
-                                .lineLimit(1)
+                            HaloLine(text: spotifyService.currentState.track,
+                                     font: .system(size: currentSize.trackTitleFontSize, weight: .bold, design: .rounded),
+                                     color: .white,
+                                     halo: halo,
+                                     glowRadius: 10 * currentSize.scaleFactor,
+                                     glowOpacity: 0.85,
+                                     lineLimit: 1, minScale: 0.8)
                                 .padding(.horizontal, 20 * currentSize.scaleFactor)
-                                .shadow(color: .black.opacity(0.8), radius: 2, x: 0, y: 1)
                             Text(spotifyService.currentState.artist)
                                 .font(.system(size: currentSize.artistFontSize, weight: .medium, design: .rounded))
                                 .foregroundStyle(.white.opacity(0.7))
@@ -204,8 +218,45 @@ struct AuraView: View {
             }
             .padding(.horizontal, 20 * currentSize.scaleFactor)
             .animation(.spring(response: 0.5, dampingFraction: 0.8), value: lyricsManager.activeLineID)
+            .animation(.easeInOut(duration: 1.2), value: spotifyService.artworkAverageColor)
             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: currentSize)
         }
         .edgesIgnoringSafeArea(.all)
+    }
+}
+
+/// One line of Aura-mode text with the album-coloured halo behind it.
+///
+/// The halo is a separate blurred copy of the glyphs rather than a chain of `.shadow`
+/// modifiers: chaining makes SwiftUI rasterise the text together with its black legibility
+/// shadow, and every later shadow is then cast by that composite — which draws a visible dark
+/// contour around the whole line. Two layers keep the glow attached to the letterforms.
+private struct HaloLine: View {
+    let text: String
+    let font: Font
+    let color: Color
+    let halo: Color
+    let glowRadius: CGFloat
+    let glowOpacity: Double
+    var lineLimit: Int = 2
+    var minScale: CGFloat = 0.6
+    var textBlur: CGFloat = 0
+
+    var body: some View {
+        ZStack {
+            Text(text)
+                .font(font)
+                .foregroundStyle(halo.opacity(glowOpacity))
+                .blur(radius: glowRadius)
+
+            Text(text)
+                .font(font)
+                .foregroundStyle(color)
+                .blur(radius: textBlur)
+                .shadow(color: .black.opacity(0.85), radius: 2, x: 0, y: 1)
+        }
+        .multilineTextAlignment(.center)
+        .lineLimit(lineLimit)
+        .minimumScaleFactor(minScale)
     }
 }
