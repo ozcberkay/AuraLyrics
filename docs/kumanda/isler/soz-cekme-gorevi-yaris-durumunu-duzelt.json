@@ -1,0 +1,40 @@
+{
+  "sema": 2,
+  "calisma_alani": "berkay",
+  "id": "soz-cekme-gorevi-yaris-durumunu-duzelt",
+  "proje": "auralyrics",
+  "baslik": "Hızlı şarkı değişiminde söz çekme görevi yarış durumunu düzelt",
+  "durum": "belirlenmis",
+  "duraklama": null,
+  "giris_modu": "yap",
+  "alan": "teknik",
+  "sahip": "ai",
+  "oncelik": 2,
+  "acilis": "2026-09-06",
+  "acilis_oturumu": 0,
+  "yazan": "goc",
+  "ozet": "LyricsManager içindeki söz çekme görevinin referansı tutulmuyor, hızlı ardışık şarkı değişiminde birden fazla eş zamanlı görev aynı duruma yazabiliyor.",
+  "surum": 1,
+  "kapsam": "LyricsManager.swift içinde tek bir değişiklik ve bir yeni test, başka dosyaya dokunmuyor.",
+  "adimlar": [
+    "LyricsManager'a görev referansını tutan yeni bir alan ekle",
+    "Söz çekme başında varsa önceki görevi bu alan üzerinden iptal et",
+    "Yeni görevi bu alana ata",
+    "Hızlı ardışık şarkı değişiminde yalnız son şarkının sözünün göründüğünü doğrulayan bir test ekle"
+  ],
+  "kabul": [
+    "Ardışık iki hızlı şarkı değişiminde ekranda yalnız ikinci şarkının sözü görünüyor",
+    "Yeni test geçer durumda"
+  ],
+  "dosyalar": [
+    "AuraLyrics/Services/LyricsManager.swift"
+  ],
+  "etiketler": [
+    "teknik-borc",
+    "eszamanlilik"
+  ],
+  "kaynak": {
+    "tur": "goc",
+    "ref": "docs/board/2026-03-30-auralyrics-strategy/round-3/research/r3-cto-launch-tech.md"
+  }
+}

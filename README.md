@@ -82,3 +82,34 @@ Bug reports and questions are welcome in [Issues](https://github.com/ozcberkay/A
 ## License
 
 MIT, see [LICENSE](LICENSE). This covers the AuraLyrics source code, not any lyrics it displays.
+
+## Kumanda: iş takibi, kararlar ve ölçüm
+
+Bu projenin durumu, iş listesi, kararları, kontrol noktaları, ölçüm serileri, riskleri ve
+yüzeyleri **kumanda'da** yaşıyor. Tek gerçek kaynak `docs/kumanda/` altındaki JSON
+dosyaları: `proje.json` ve `isler/<id>.json`. Panel onlardan üretiliyor, elle
+düzenlenmiyor ve gitignore'da:
+
+```
+open /Users/berkayozcan/workspace/AuraLyrics/docs/kumanda/panel.html
+```
+
+Kayıtları elle düzenleme, komutla yaz. Komutlar kumanda repo'sunda:
+
+```bash
+node /Users/berkayozcan/workspace/kumanda/is.mjs listele --proje auralyrics
+node /Users/berkayozcan/workspace/kumanda/is.mjs ac --proje auralyrics --baslik "..." --alan <alan> --sahip <sahip> \
+                    --giris-modu <mod> --oncelik <1-4> --ozet "..."
+node /Users/berkayozcan/workspace/kumanda/is.mjs al --proje auralyrics --is <id> --agent <ad>
+node /Users/berkayozcan/workspace/kumanda/is.mjs durum --proje auralyrics --is <id> --durum yapildi --bitis YYYY-AA-GG
+node /Users/berkayozcan/workspace/kumanda/proje.mjs karar --proje auralyrics --konu "..." --eski "..." --yeni "..." --kanit "..."
+node /Users/berkayozcan/workspace/kumanda/proje.mjs nokta-sonuc --proje auralyrics --nokta "<ad>" --sonuc <deger>
+node /Users/berkayozcan/workspace/kumanda/dogrula.mjs
+```
+
+İzinli değerler: `node /Users/berkayozcan/workspace/kumanda/is.mjs degerler` ve `node /Users/berkayozcan/workspace/kumanda/proje.mjs degerler`.
+Akışların tamamı ve kopyalanabilir istemler: `/Users/berkayozcan/workspace/kumanda/site/rehber.html`.
+
+Commit kapısı bu repo'da kurulu: şema dışı bir kumanda kaydı commit'e giremez. Doğrulama
+sıfır hata vermeli. Yeni bir yapılacaklar dosyası, durum dosyası ya da karar dosyası açma;
+hepsi kumanda kaydına girer.

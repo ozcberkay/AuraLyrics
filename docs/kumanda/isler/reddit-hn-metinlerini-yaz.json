@@ -1,0 +1,39 @@
+{
+  "sema": 2,
+  "calisma_alani": "berkay",
+  "id": "reddit-hn-metinlerini-yaz",
+  "proje": "auralyrics",
+  "baslik": "Reddit ve Show HN gönderi metinlerini yaz",
+  "durum": "belirlenmis",
+  "duraklama": null,
+  "giris_modu": "yap",
+  "alan": "pazarlama",
+  "sahip": "ai",
+  "oncelik": 2,
+  "acilis": "2026-09-06",
+  "acilis_oturumu": 0,
+  "yazan": "goc",
+  "ozet": "r/macapps ve Show HN için gönderi metinlerini bir dosyaya yaz, AlternativeTo'ya listele.",
+  "surum": 1,
+  "kapsam": "Yalnız metin taslağı ve AlternativeTo listelemesi, gönderiyi paylaşmak bu iş kapsamında değil.",
+  "adimlar": [
+    "Üç cümlelik tanıtım, klip, brew satırı, dürüst LRCLIB notu ve telemetri kullanılmadığı satırını içeren metni yaz",
+    "Son testin macOS 26'da yapıldığını, 14 ve üzeri derleme hedefinin doğrulanmadığını belirten notu ekle",
+    "Yalnız Spotify kapsamını ve Apple Music için Music.app'in zaten söz gösterdiğini tek cümlede açıkla",
+    "Spotify'ın ücretsiz söz sınırını ve masaüstü tam ekran gerilemesini tek cümlede belirt",
+    "AlternativeTo'ya LyricsX ve LyricFever alternatifi olarak gönder"
+  ],
+  "kabul": [
+    "Gönderime hazır iki metin dosyada duruyor",
+    "AlternativeTo listelemesi yapıldı"
+  ],
+  "etiketler": [
+    "pazarlama",
+    "lansman"
+  ],
+  "tahmin_saat": 1,
+  "kaynak": {
+    "tur": "goc",
+    "ref": "docs/board/2026-08-29-strategy-audit/report.md"
+  }
+}

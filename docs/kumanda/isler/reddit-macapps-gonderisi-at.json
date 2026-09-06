@@ -1,0 +1,37 @@
+{
+  "sema": 2,
+  "calisma_alani": "berkay",
+  "id": "reddit-macapps-gonderisi-at",
+  "proje": "auralyrics",
+  "baslik": "r/macapps'te AuraLyrics gönderisini paylaş",
+  "durum": "belirlenmis",
+  "duraklama": null,
+  "giris_modu": "yap",
+  "alan": "pazarlama",
+  "sahip": "kurucu",
+  "oncelik": 2,
+  "acilis": "2026-09-06",
+  "acilis_oturumu": 0,
+  "yazan": "goc",
+  "ozet": "Hazırlanan metni ve klibi r/macapps'te paylaş, ilk gün ve ertesi gün yorumlara cevap ver.",
+  "surum": 1,
+  "kapsam": "Tek gönderi, iki günde toplam bir saatlik yorum takibi, sonra kapat.",
+  "adimlar": [
+    "Cumartesi öğleden sonrası, Türkiye saatiyle 16.00 ile 18.00 arası, gönderiyi paylaş",
+    "İlk gün 30 dakika yorumlara cevap ver",
+    "Ertesi gün 30 dakika daha yorumlara cevap ver, sonra sekmeyi kapat"
+  ],
+  "kabul": [
+    "Gönderi yayında",
+    "İki günlük yorum takibi tamamlandı"
+  ],
+  "etiketler": [
+    "pazarlama",
+    "lansman"
+  ],
+  "tahmin_saat": 1.5,
+  "kaynak": {
+    "tur": "goc",
+    "ref": "docs/board/2026-08-29-strategy-audit/report.md"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "sema": 2,
+  "calisma_alani": "berkay",
+  "id": "eski-branchi-github-dan-sil",
+  "proje": "auralyrics",
+  "baslik": "Kullanılmayan eski düzeltme branch'ini GitHub'dan sil",
+  "durum": "belirlenmis",
+  "duraklama": "engelli",
+  "giris_modu": "yap",
+  "alan": "teknik",
+  "sahip": "kurucu",
+  "oncelik": 4,
+  "acilis": "2026-09-06",
+  "acilis_oturumu": 0,
+  "yazan": "goc",
+  "ozet": "Font boyutu çökme düzeltmesini taşıyan eski uzak branch, main'de daha iyi bir mekanizmayla zaten çözüldüğü için gereksiz kaldı, sil.",
+  "surum": 1,
+  "engel": "Uzak branch silme izni AI oturumunda engellendi, kurucunun kendisinin silmesi gerekiyor.",
+  "kapsam": "Yalnız GitHub'daki uzak branch siliniyor, main'e hiçbir şey birleştirilmiyor.",
+  "adimlar": [
+    "git push origin --delete claude/fix-font-size-crashes-WjmTS komutunu çalıştır"
+  ],
+  "kabul": [
+    "Branch GitHub'da artık listelenmiyor"
+  ],
+  "etiketler": [
+    "temizlik"
+  ],
+  "tahmin_saat": 0.03,
+  "kaynak": {
+    "tur": "goc",
+    "ref": "docs/board/2026-08-29-strategy-audit/report.md"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "sema": 2,
+  "calisma_alani": "berkay",
+  "id": "aura-klibi-cek-ve-yayinla",
+  "proje": "auralyrics",
+  "baslik": "8 saniyelik Aura klibini çek ve README'ye koy",
+  "durum": "belirlenmis",
+  "duraklama": null,
+  "giris_modu": "yap",
+  "alan": "pazarlama",
+  "sahip": "kurucu",
+  "oncelik": 1,
+  "acilis": "2026-09-06",
+  "acilis_oturumu": 0,
+  "yazan": "goc",
+  "ozet": "Temiz masaüstünde, Dock gizli, koyu duvar kağıdıyla, parça değişimini kapsayan 8 saniyelik Aura modu klibini kaydet ve README'nin en üstüne koy.",
+  "surum": 1,
+  "kapsam": "Kayıt, kırpma, iki formatta dışa aktarma (MP4 ve 5 megabaytın altında GIF), assets ve README güncellemesi, kesme kriterinin yazılı hale getirilmesi.",
+  "adimlar": [
+    "Dock'u gizle, düz koyu duvar kağıdı ve rengi güçlü bir albüm seç",
+    "Cmd-Shift-5 ile ekran kaydı yap, parça değişimini kapsa",
+    "8 saniyeye kırp, MP4 olarak dışa aktar, 5 megabaytın altında bir GIF yedeği üret",
+    "assets/screenshots/aura-view.png dosyasındaki hayalet çerçeveli görseli değiştir",
+    "Klibi README'nin en üstüne tek cümleyle ekle",
+    "Kesme kriterini docs/DECISION-2026-09.md dosyasına yaz"
+  ],
+  "kabul": [
+    "README'nin en üstünde yeni klip görünüyor",
+    "assets/screenshots/aura-view.png güncel",
+    "docs/DECISION-2026-09.md kesme kriterini içeriyor"
+  ],
+  "dosyalar": [
+    "README.md",
+    "assets/screenshots/aura-view.png",
+    "docs/DECISION-2026-09.md"
+  ],
+  "etiketler": [
+    "pazarlama",
+    "lansman"
+  ],
+  "tahmin_saat": 1.5,
+  "kaynak": {
+    "tur": "goc",
+    "ref": "docs/board/2026-08-29-strategy-audit/report.md"
+  }
+}

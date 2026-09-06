@@ -1,0 +1,37 @@
+{
+  "sema": 2,
+  "calisma_alani": "berkay",
+  "id": "show-hn-gonderisi-at",
+  "proje": "auralyrics",
+  "baslik": "Show HN gönderisini paylaş",
+  "durum": "belirlenmis",
+  "duraklama": null,
+  "giris_modu": "yap",
+  "alan": "pazarlama",
+  "sahip": "kurucu",
+  "oncelik": 2,
+  "acilis": "2026-09-06",
+  "acilis_oturumu": 0,
+  "yazan": "goc",
+  "ozet": "SwiftUI'nin NSPanel içinde çalışması ve tek seferlik menü kurulumu anlatımıyla Show HN gönderisini paylaş.",
+  "surum": 1,
+  "kapsam": "Tek gönderi, bir saatlik yorum takibi, sonra kapat.",
+  "adimlar": [
+    "Salı günü 14.00 UTC, Türkiye saatiyle 17.00, gönderiyi paylaş",
+    "Bir saat boyunca yorumlara cevap ver, sonra kapat",
+    "macOS 27 bu tarihte çıkmışsa ya iki üç saatlik sanal makine testi yap ya da gönderide macOS 26'da test edildiğini ve 27'nin doğrulanmadığını belirt, test için planı uzatma"
+  ],
+  "kabul": [
+    "Gönderi yayında",
+    "macOS 27 durumu netleştirildi"
+  ],
+  "etiketler": [
+    "pazarlama",
+    "lansman"
+  ],
+  "tahmin_saat": 1,
+  "kaynak": {
+    "tur": "goc",
+    "ref": "docs/board/2026-08-29-strategy-audit/report.md"
+  }
+}

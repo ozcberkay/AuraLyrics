@@ -1,0 +1,447 @@
+{
+  "sema": 2,
+  "calisma_alani": "berkay",
+  "id": "auralyrics",
+  "ad": "AuraLyrics",
+  "yer": "repo",
+  "faz": "canli",
+  "cumle": "AuraLyrics, macOS'ta Spotify'da çalan şarkının senkron sözlerini her zaman üstte kalan bir pencerede gösterir, üçüncü taraf kütüphane ya da Spotify API anahtarı kullanmaz.",
+  "guncelleme": "2026-09-06",
+  "guncelleme_oturumu": 19,
+  "yazan": "goc",
+  "saglik": [
+    {
+      "ad": "Derleme",
+      "durum": "iyi",
+      "not": "Sade derleme sıfır uyarı veriyor, Swift 6 dil modu da derleniyor. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+    },
+    {
+      "ad": "İmza ve dağıtım güvenliği",
+      "durum": "uyari",
+      "not": "Sürüm hâlâ ad-hoc imzalı, doğrudan arşiv indirenler 'hasarlı' uyarısı görüyor. Homebrew ile kuranlar bunu görmüyor çünkü cask karantinayı siliyor. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+    },
+    {
+      "ad": "Test kapsamı",
+      "durum": "uyari",
+      "not": "35 test var ama çoğu kaynak dosyada metin arayan grep testi, davranış testi neredeyse yok. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+    },
+    {
+      "ad": "Kullanıcı tanınırlığı",
+      "durum": "kotu",
+      "not": "38 toplam indirme, 0 GitHub yıldızı, 0 dış issue. Ürün adı hiçbir arama sonucunda çıkmıyor. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+    },
+    {
+      "ad": "Hukuki durum",
+      "durum": "iyi",
+      "not": "Ücretsiz, MIT lisanslı, kendi sunucusu yok, Spotify sözleşmesini ihlal eden bir yol yok. Risk yalnız para alınırsa ya da fark edilirse gerçek oluyor. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+    },
+    {
+      "ad": "macOS 27 uyumluluğu",
+      "durum": "uyari",
+      "not": "Uygulama macOS 27 betasında hiç çalıştırılmadı, doğrulanmadı. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+    }
+  ],
+  "sayilar": [
+    {
+      "ad": "Test sayısı",
+      "deger": 35,
+      "not": "v1.1.1 itibarıyla, 29'dan yükseldi, dördü yeni hata düzeltmelerini sabitliyor. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+    },
+    {
+      "ad": "Toplam kod satırı",
+      "deger": 2200,
+      "not": "Yaklaşık, 21 dosyada saf Swift, sıfır bağımlılık. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+    },
+    {
+      "ad": "Toplam indirme, yayın öncesi 6 sürüm",
+      "deger": 38,
+      "not": "21'i 9 Ocak'ta tek günde v1.0.2'ye, büyük olasılıkla kendi testlerinin izi. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+    },
+    {
+      "ad": "GitHub yıldızı",
+      "deger": 0,
+      "not": "29 Ağustos denetimi sırasında. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+    },
+    {
+      "ad": "Mart planının harcanan saati",
+      "deger": 0,
+      "not": "78 saatlik plan yazıldı ama beş ay boyunca yürütülmedi. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+    },
+    {
+      "ad": "İki haftalık deneyin toplam tahmini saati",
+      "deger": 11.5,
+      "not": "Yaklaşık 11 ila 12 saat, ilk oturumun büyük kısmı 29 ve 30 Ağustos'ta tamamlandı. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+    }
+  ],
+  "kararlar": [
+    {
+      "tarih": "2026-08-29",
+      "konu": "Para kazanma hedefi",
+      "eski": "Mart planı 9,99 dolarlık tek seferlik ücretli lisans, LemonSqueezy ödeme altyapısı ve satış huniyle koşullu onay almıştı.",
+      "yeni": "Proje ücretsiz ve tam açık kaynak olarak yayınlanıyor, para hedef değil.",
+      "kanit": "docs/board/2026-08-29-strategy-audit/report.md, birinci bölüm ve çürütülenler tablosundaki ücretli ürün satırı"
+    },
+    {
+      "tarih": "2026-08-29",
+      "konu": "Sözlerin ticari lisanslanması",
+      "eski": "Mart sonu kurulu, ticari kullanım riskini azaltmak için Musixmatch'e geçişi ve yıllık ücretli tedarikçi anlaşmasını önermişti.",
+      "yeni": "lrclib ile ücretsiz devam ediliyor, tedarikçi arayışı bırakıldı çünkü ücretsiz kalmak hukuki riski zaten sıfırlıyor.",
+      "kanit": "docs/board/2026-08-29-strategy-audit/report.md, hukuk bölümü ve çürütülenler tablosu"
+    },
+    {
+      "tarih": "2026-08-29",
+      "konu": "Apple Music desteği",
+      "eski": "Mart planı üçüncü çeyrekte MusicKit entegrasyonuyla Apple Music desteğini takvime bağlamıştı.",
+      "yeni": "Apple Music kapsam dışı, sinyal gelmeden yapılmayacak.",
+      "kanit": "docs/board/2026-08-29-strategy-audit/report.md, çürütülenler tablosu ve yapma listesi"
+    },
+    {
+      "tarih": "2026-08-29",
+      "konu": "Apple notarization",
+      "eski": "Mart kurulu notarization'ı lansman öncesi beş zorunlu koşuldan biri yapmıştı.",
+      "yeni": "Notarization isteğe bağlı, öncelik taşımayan bir adıma indirildi, yalnız somut bir Gatekeeper şikâyeti ya da otuz günde yüz ve üzeri doğrudan indirmede devreye giriyor.",
+      "kanit": "docs/board/2026-08-29-strategy-audit/report.md, yollar tablosu beşinci satır"
+    },
+    {
+      "tarih": "2026-08-29",
+      "konu": "Açık kaynak modeli",
+      "eski": "Mart kurulu hibrit açık çekirdek önermişti, adaptif tema algoritmaları kapalı bir modül olarak kalacaktı.",
+      "yeni": "Bütün kod tabanı MIT lisansıyla tam açık, kapalı bir modül yok.",
+      "kanit": "LICENSE, docs/board/2026-08-29-strategy-audit/report.md"
+    },
+    {
+      "tarih": "2026-08-30",
+      "konu": "Deponun yayında olma durumu",
+      "eski": "GitHub'daki main branch'i 14 Ocak 2026'da kalmıştı, yayındaki sürüm Ocak'ın ad-hoc imzalı 1.0.5'iydi ve release script sürümü 1.0.1'de sabitti.",
+      "yeni": "main push'landı, v1.1.0 ve ardından v1.1.1 etiketlenip yayınlandı, release script'i tek bir VERSION değişkeniyle çalışıyor.",
+      "kanit": "git log, docs/board/2026-08-29-strategy-audit/report.md"
+    },
+    {
+      "tarih": "2026-08-29",
+      "konu": "LRCLIB atfı ve kimliklendirme",
+      "eski": "İstekler kimliksiz bir User-Agent ile gidiyordu, menüde LRCLIB'e atıf yoktu.",
+      "yeni": "AppInfo.swift eklendi, istekler kimlikli bir User-Agent ile gidiyor, menüde LRCLIB'e giden bir atıf satırı var.",
+      "kanit": "AuraLyrics/Models/AppInfo.swift, docs/board/2026-08-29-strategy-audit/report.md"
+    }
+  ],
+  "kontrol_noktalari": [
+    {
+      "ad": "İki haftalık deneyin gün 14 durağı",
+      "esik": "İndirme, yıldız ve dış issue, PR, yorum sayısını gh api ile karar dosyasına yaz, plana hiçbir şey eklenmez.",
+      "tur": "takvim",
+      "kontrol_tarihi": "2026-09-12",
+      "sonuc": "bekliyor",
+      "not": "Komut: gh api repos/auraworkshq/AuraLyrics/releases. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+    },
+    {
+      "ad": "Otuz günlük devam ya da arşiv kararı",
+      "esik": "150 ve üzeri sürüm indirmesi ve 25 ve üzeri GitHub yıldızı, ya da yabancıdan en az bir istenmemiş issue, PR ya da yorum.",
+      "tur": "takvim",
+      "kontrol_tarihi": "2026-09-28",
+      "sonuc": "bekliyor",
+      "not": "Eşik geçerse notarization ya da bir yazı yazımından yalnız biri açılır. Geçmezse README'ye durum bandı eklenir ve repo arşivlenir. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+    }
+  ],
+  "urun": {
+    "hedef_kullanici": "Spotify masaüstü uygulamasını gün boyu açık tutan bilgi işçisi. Kaynak: docs/board/2026-08-29-strategy-audit/report.md, müşteri bölümü",
+    "ucretsiz": [
+      "Lyrics view",
+      "Aura mode",
+      "Menü çubuğu kontrolleri",
+      "Senkron söz",
+      "İki katmanlı önbellek"
+    ],
+    "fiyat": "Ücretsiz",
+    "basari_metrigi": "30 günde 150 ve üzeri sürüm indirmesi ve 25 ve üzeri GitHub yıldızı, ya da en az bir istenmemiş dış issue, PR ya da yorum. Kaynak: docs/board/2026-08-29-strategy-audit/report.md",
+    "ekranlar": [
+      "Lyrics view: tüm şarkı, kayan, albüm renginde arka plan",
+      "Aura mode: üç satır, albümün renginde halo, penceresiz",
+      "Menü çubuğu: oynat, duraklat, ileri, geri, tema, boyut"
+    ],
+    "non_goals": [
+      "Apple Music desteği",
+      "Windows ya da iOS sürümü",
+      "Abonelik modeli",
+      "Mac App Store dağıtımı",
+      "Çeviri",
+      "Kelime kelime senkron söz",
+      "YouTube Music"
+    ]
+  },
+  "mimari": {
+    "ozet": "Native Swift ve SwiftUI ile yazılmış macOS uygulaması, sıfır üçüncü taraf bağımlılık. Spotify oynatma durumunu kendi AppleScript arayüzünden okur, sözü LRCLIB'den çeker, albümün renginden uyarlanan iki görünüm sunar. Kaynak: README.md, docs/board/2026-08-29-strategy-audit/report.md",
+    "bilesenler": [
+      {
+        "ad": "SpotifyService",
+        "not": "Spotify oynatma durumunu AppleScript ve DistributedNotification ile okur, 2, 5 ve 10 saniyelik uyarlanabilir polling kullanır. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+      },
+      {
+        "ad": "LyricsFetcher",
+        "not": "LRCLIB'den zaman damgalı sözü çeker, zaman aşımı ve tekrar deneme içerir. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+      },
+      {
+        "ad": "LyricsManager",
+        "not": "İki katmanlı önbellek, bellek ve disk. Önbellek anahtarı artık albüm ve süreyi de içeriyor, dosya adı anahtarın SHA256'sı. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+      },
+      {
+        "ad": "AdaptiveBackgroundView ve ColorExtraction",
+        "not": "Albüm kapağından ortalama renk çıkarır, 1,2 saniyelik geçişle uygular. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+      },
+      {
+        "ad": "FloatingPanel ve WindowManager",
+        "not": "Her zaman üstte kalan pencereyi yönetir, pencere çerçevesini kaydedip geri yükler. Kaynak: README.md"
+      },
+      {
+        "ad": "MenuBarManager",
+        "not": "Menü çubuğu simgesini bir kez kurar, sonrasında menü öğesini cerrahi olarak günceller. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+      }
+    ],
+    "akislar": [
+      {
+        "ad": "Söz gösterme",
+        "adimlar": [
+          "SpotifyService",
+          "LyricsFetcher",
+          "LyricsManager",
+          "LyricsView / AuraView"
+        ],
+        "not": "Şarkı değişince SpotifyService parça bilgisini okur, LyricsFetcher LRCLIB'den söz çeker, LyricsManager önbelleğe yazar, görünüm güncellenir."
+      }
+    ],
+    "limitler": [
+      {
+        "ad": "Platform kapsamı",
+        "deger": "Yalnız Spotify masaüstü uygulaması, Apple Music kapsam dışı"
+      },
+      {
+        "ad": "Minimum macOS sürümü",
+        "deger": "macOS 14.0 (Sonoma)"
+      }
+    ],
+    "ortam": [
+      {
+        "ad": "Geliştirme",
+        "not": "Swift 5.9 / Xcode 15 ve üzeri, swift build, swift test, swift run ile çalışır. Kaynak: README.md"
+      },
+      {
+        "ad": "Dağıtım",
+        "not": "Homebrew cask (ozcberkay/tap/auralyrics) ve ad-hoc imzalı GitHub Release arşivi, notarization yok. Kaynak: README.md, docs/board/2026-08-29-strategy-audit/report.md"
+      }
+    ],
+    "veri": [
+      {
+        "ad": "Yerel önbellek",
+        "not": "Parça meta verisi ve çekilen sözler kullanıcının kendi diskinde önbelleğe alınır, sunucu yok. Kaynak: README.md"
+      }
+    ]
+  },
+  "riskler": [
+    {
+      "baslik": "lrclib'in ticari kullanım belirsizliği",
+      "aciklama": "lrclib'in kendi forumunda Temmuz 2026'da açılan ticari kullanım konusu hâlâ cevapsız ve altında dava uyarısı var. Risk yalnız para alınırsa ya da proje fark edilirse gerçek oluyor.",
+      "olasilik": 2,
+      "etki": 3,
+      "onlem": "Ücretsiz kalmaya devam et, LRCLIB atfını ve gizlilik notunu görünür tut, para istemekten kaçın.",
+      "sahip": "kurucu",
+      "son_kontrol": "2026-08-29"
+    },
+    {
+      "baslik": "macOS 27 ile menü çubuğu ve panel kırılması",
+      "aciklama": "macOS 27 menü çubuğunu tek pencereye çeviriyor, uygulama bu sürümün betasında hiç çalıştırılmadı, doğrulanmadı.",
+      "olasilik": 2,
+      "etki": 2,
+      "onlem": "macOS 27 yaygınlaşmadan gönder, çıkarsa iki üç saatlik sanal makine testi yap ya da gönderilerde doğrulanmadığını belirt.",
+      "sahip": "ai",
+      "son_kontrol": "2026-08-29"
+    },
+    {
+      "baslik": "Tek söz kaynağına bağımlılık",
+      "aciklama": "Sözler tamamen lrclib.net'ten geliyor, bu tek kişilik ve bağışla dönen bir hobi projesi, kendi yedek kaynağı yok.",
+      "olasilik": 1,
+      "etki": 3,
+      "onlem": "lrclib kapanma sinyali gelirse tek akşamlık iş olarak arama endpoint'i yedeği ve DistributedNotification'ın birincil kaynak yapılması açılır.",
+      "sahip": "ai",
+      "son_kontrol": "2026-08-29"
+    },
+    {
+      "baslik": "Spotify AppleScript arayüzünün kaldırılması",
+      "aciklama": "Uygulama Spotify'ın oynatma durumunu yalnız AppleScript ve DistributedNotification üzerinden okuyor, bu yüzeyin kaldırılma ihtimali var.",
+      "olasilik": 1,
+      "etki": 3,
+      "onlem": "2020 ile 2023 arasından sonra belgelenmiş bir kırılma yok, izlemeye devam et, sinyal gelmeden değişiklik yapma.",
+      "sahip": "ai",
+      "son_kontrol": "2026-08-29"
+    }
+  ],
+  "rakipler": [
+    {
+      "ad": "LyricFever",
+      "not": "Lider, 628 yıldız, ömür boyu yaklaşık 18,9 bin indirme, en iyi sürümü 3.971. Son sürüm 28 Kasım 2025, son push 3 Nisan 2026, yardım isteyen konuya 7 haftadır bakımcı cevabı yok. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+    },
+    {
+      "ad": "LyricsX",
+      "not": "5.206 yıldız, 416 bin indirme ama 2022'den beri sürüm çıkmıyor. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+    },
+    {
+      "ad": "LyricsBlossom",
+      "not": "194 yıldız, 2.190 indirme. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+    },
+    {
+      "ad": "LYRA",
+      "not": "66 yıldız, 136 indirme. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+    },
+    {
+      "ad": "LyricGlow",
+      "not": "36 yıldız, 1.193 indirme, kelime kelime senkron ve 43 dil çeviri var. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+    },
+    {
+      "ad": "Lyrics-Plus",
+      "not": "32 yıldız, 734 indirme, 6 Ağustos 2026'da açıldı. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+    },
+    {
+      "ad": "Karacookie",
+      "not": "Aura moduna en yakın uygulama, kendi tanıtım sayfası var, 0 yıldız, Haziran 2026'da açıldı. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+    },
+    {
+      "ad": "Lyricly",
+      "not": "Tek ücretli Mac rakibi, 5,99 dolar, App Store'da 3 ayda 1 değerlendirme aldı. Kaynak: docs/board/2026-08-29-strategy-audit/report.md"
+    }
+  ],
+  "arastirma": [
+    {
+      "ad": "Mart 2026 AuraLyrics strateji kurulu, uygulama aksiyon planı",
+      "durum": "eskidi",
+      "tarih": "2026-03-30",
+      "ozet": "Yedi üyeli danışma kurulunun altı turluk stratejisi, 9,99 dolarlık tek seferlik ücretli lisans, LemonSqueezy, Sparkle otomatik güncelleme, Apple notarization, hibrit açık çekirdek ve Apple Music genişlemesini önerdi. 29 Ağustos strateji denetimi bu kararların neredeyse tamamını çürüttü, çünkü plan beş ay boyunca sıfır saat yürütüldü ve proje o zamana kadar hiç push'lanmamıştı.",
+      "yol": "docs/board/2026-03-30-auralyrics-strategy/round-6/round-6-action-plan.md"
+    },
+    {
+      "ad": "Mart 2026 lrclib ticari risk kurulu, tedarikçi seçimi",
+      "durum": "eskidi",
+      "tarih": "2026-03-31",
+      "ozet": "Ücretli bir üründe lrclib'in ticari kullanım belirsizliğini azaltmak için Musixmatch'e geçişi önerdi, yıllık iki bin doların altında olması koşuluyla, ve bir tedarikçi soyutlama katmanı istedi. 29 Ağustos strateji denetimi projeyi ücretsiz tutma kararı verdiği için bu tedarikçi arayışının gereği ortadan kalktı.",
+      "yol": "docs/board/2026-03-31-lrclib-ticari-risk/round-2/round-2-synthesis.md"
+    },
+    {
+      "ad": "29 Ağustos 2026 strateji denetimi",
+      "durum": "gecerli",
+      "tarih": "2026-08-29",
+      "ozet": "Üç bağımsız denetim, Mart'taki iki kurulun özeti ve on bir şapkanın çürütmeli değerlendirmesiyle yazıldı. Karar: AuraLyrics'i ücretsiz ve açık kaynak olarak olduğu hâliyle iki hafta içinde yayınla, tek bir Aura klibiyle bir kez göster, 30. günde tek bir sayıya bakıp devam ya da onurlu arşiv kararı ver. Aynı oturumda push, sürüm etiketleme, LRCLIB atfı ve üç gerçek hata düzeltmesi uygulanıp doğrulandı.",
+      "yol": "docs/board/2026-08-29-strategy-audit/report.md"
+    }
+  ],
+  "operasyon": {
+    "runbook": [
+      {
+        "ad": "Güvenlik açığı bildirimi",
+        "adimlar": [
+          "hello@auraworks.dev adresine yaz, genel bir issue açma",
+          "Ne yapıldığını, ne olduğunu, macOS ve AuraLyrics sürümünü ekle",
+          "İsteğe bağlı olarak kanıt kavramını ekle",
+          "Birkaç gün içinde ilk yanıtı bekle"
+        ]
+      }
+    ],
+    "komutlar": [
+      {
+        "ad": "Derle ve test et",
+        "komut": "swift build && swift test"
+      },
+      {
+        "ad": "Swift 6 modunda derle, CI kontrolü",
+        "komut": "swift build -Xswiftc -swift-version -Xswiftc 6"
+      },
+      {
+        "ad": "Uygulamayı çalıştır",
+        "komut": "swift run AuraLyrics"
+      },
+      {
+        "ad": "Dağıtılabilir uygulama üret",
+        "komut": "scripts/build_release_auralyrics.sh"
+      },
+      {
+        "ad": "Homebrew ile kur",
+        "komut": "brew install --cask ozcberkay/tap/auralyrics"
+      },
+      {
+        "ad": "Yayın metriklerini oku",
+        "komut": "gh api repos/auraworkshq/AuraLyrics/releases"
+      }
+    ],
+    "baglantilar": [
+      {
+        "ad": "GitHub deposu",
+        "adres": "https://github.com/ozcberkay/AuraLyrics"
+      },
+      {
+        "ad": "Homebrew cask deposu",
+        "adres": "https://github.com/ozcberkay/homebrew-tap"
+      },
+      {
+        "ad": "CI iş akışı",
+        "adres": "https://github.com/ozcberkay/AuraLyrics/actions/workflows/ci.yml"
+      },
+      {
+        "ad": "Sözler kaynağı, LRCLIB",
+        "adres": "https://lrclib.net"
+      },
+      {
+        "ad": "AuraWorks mağaza sayfası",
+        "adres": "https://auraworks.dev"
+      }
+    ]
+  },
+  "yuzeyler": [
+    {
+      "ad": "LRCLIB",
+      "tur": "saglayici",
+      "durum": "aktif",
+      "aylik_maliyet": "0"
+    },
+    {
+      "ad": "GitHub deposu, ozcberkay/AuraLyrics",
+      "tur": "kanal",
+      "durum": "aktif"
+    },
+    {
+      "ad": "Homebrew tap, ozcberkay/tap",
+      "tur": "kanal",
+      "durum": "aktif"
+    },
+    {
+      "ad": "auraworks.dev",
+      "tur": "alan_adi",
+      "durum": "aktif"
+    }
+  ],
+  "dokumanlar": [
+    {
+      "ad": "README",
+      "yol": "README.md",
+      "tarih": "2026-08-30",
+      "tur": "diger",
+      "not": "Kurulum, özellikler, gizlilik ve hukuk bölümü, kim yaptığı. Son commit tarihiyle güncel."
+    },
+    {
+      "ad": "Katkı rehberi",
+      "yol": "CONTRIBUTING.md",
+      "tarih": "2026-08-30",
+      "tur": "diger",
+      "not": "Geliştirme kurulumu, CI beklentisi, commit ve PR kuralları."
+    },
+    {
+      "ad": "Lisans",
+      "yol": "LICENSE",
+      "tarih": "2026-01-10",
+      "tur": "diger",
+      "not": "MIT lisans, yalnız kaynak kodu kapsıyor, gösterilen sözleri değil."
+    },
+    {
+      "ad": "Güvenlik politikası",
+      "yol": "SECURITY.md",
+      "tarih": "2026-08-30",
+      "tur": "diger",
+      "not": "Açık bildirim e-postası, kapsam içi ve dışı liste, tek kişilik proje notu."
+    }
+  ]
+}
