@@ -122,6 +122,13 @@
       "eski": "İstekler kimliksiz bir User-Agent ile gidiyordu, menüde LRCLIB'e atıf yoktu.",
       "yeni": "AppInfo.swift eklendi, istekler kimlikli bir User-Agent ile gidiyor, menüde LRCLIB'e giden bir atıf satırı var.",
       "kanit": "AuraLyrics/Models/AppInfo.swift, docs/board/2026-08-29-strategy-audit/report.md"
+    },
+    {
+      "tarih": "2026-09-06",
+      "konu": "Kumanda göçü ve faz kararı",
+      "eski": "Proje kumanda kayıt listesinde yer alıyordu ama verisi hiç yazılmamıştı, fazı bilinmiyordu. Durum, iş listesi ve kararlar proje dosyalarına dağılmıştı.",
+      "yeni": "Faz canli. Veri /Users/berkayozcan/workspace/AuraLyrics/docs/kumanda altına taşındı, panel oradan üretiliyor. Tek gerçek kaynak kumanda kaydı.",
+      "kanit": "Uygulama Homebrew ile kurulabiliyor ve GitHub'da v1.1.1 olarak yayında, kanıt README.md'deki kurulum komutu ve docs/board/2026-08-29-strategy-audit/report.md'deki uçtan uca doğrulama kaydı. Göç keşfi salt okuma yapan bir alt agent tarafından üretildi, teklif dosyası docs/arastirma/goc/auralyrics.json, uygulama goc/teklif-uygula.mjs ile doğrulamadan geçirilerek yapıldı. Silinen dosyalar docs/arastirma/faz-uc-silinenler.md içinde tek tek yazılı."
     }
   ],
   "kontrol_noktalari": [

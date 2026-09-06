@@ -12,9 +12,9 @@
   "oncelik": 1,
   "acilis": "2026-09-06",
   "acilis_oturumu": 0,
-  "yazan": "goc",
+  "yazan": "yeniden-dogrulama",
   "ozet": "Temiz masaüstünde, Dock gizli, koyu duvar kağıdıyla, parça değişimini kapsayan 8 saniyelik Aura modu klibini kaydet ve README'nin en üstüne koy.",
-  "surum": 1,
+  "surum": 2,
   "kapsam": "Kayıt, kırpma, iki formatta dışa aktarma (MP4 ve 5 megabaytın altında GIF), assets ve README güncellemesi, kesme kriterinin yazılı hale getirilmesi.",
   "adimlar": [
     "Dock'u gizle, düz koyu duvar kağıdı ve rengi güçlü bir albüm seç",
@@ -42,5 +42,6 @@
   "kaynak": {
     "tur": "goc",
     "ref": "docs/board/2026-08-29-strategy-audit/report.md"
-  }
+  },
+  "notlar": "Yeniden doğrulamada belirsiz, oturum 19: Klip işi fiilen yapılmış: README'nin en üstünde assets/aura-mode.gif duruyor ve assets/screenshots/aura-view.png 30 Ağustos'ta yenilenmiş. Geriye yalnız docs/DECISION-2026-09.md dosyasına yazılacak kesme kriteri kaldı ve o dosya hiç yok, işin kapanması mı yoksa o tek maddeye daralması mı gerektiği kurucunun kararı."
 }
