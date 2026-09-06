@@ -1,0 +1,36 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh /Users/berkayozcan/workspace/kumanda/kapi.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /Users/berkayozcan/workspace/kumanda/panel.mjs --sessiz"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /Users/berkayozcan/workspace/kumanda/kok.mjs --oturum-artir && node /Users/berkayozcan/workspace/kumanda/acilis.mjs"
+          }
+        ]
+      }
+    ]
+  }
+}
