@@ -41,5 +41,7 @@ docs/board/
 # Tool residue
 .bg-shell/
 
-# Uretilmis urun paneli. proje.json'dan yeniden uretiliyor.
-docs/kumanda/panel.html
+# Kumanda verisi. Acik kaynak repo'da durmaz: is kayitlari, saglik notlari,
+# rakip sayilari ve risk degerlendirmesi ic strateji, docs/board/ ile ayni
+# sebepten disarida. Veri yerelde kalir, panel yerelde uretilir.
+docs/kumanda/
