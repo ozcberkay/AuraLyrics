@@ -56,6 +56,36 @@ final class LyricsManagerTests: XCTestCase {
         )
     }
 
+    /// Skipping tracks quickly starts a second lyrics fetch while the first is still in
+    /// flight. Nothing held the first task, so whichever response landed last won and the
+    /// screen could end up showing the previous song's lyrics.
+    func testFetchTaskIsRetainedAndCancelled() throws {
+        let sourceURL = URL(fileURLWithPath: #file)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("AuraLyrics/Services/LyricsManager.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+
+        XCTAssertTrue(
+            source.contains("private var fetchTask: Task<Void, Never>?"),
+            "LyricsManager must hold the in-flight fetch so a new track can cancel it"
+        )
+        XCTAssertTrue(
+            source.contains("fetchTask?.cancel()"),
+            "fetchLyrics must cancel the previous fetch before starting a new one"
+        )
+        XCTAssertTrue(
+            source.contains("fetchTask = Task {"),
+            "the new fetch must be assigned to fetchTask, not started as a loose Task"
+        )
+        // A cancelled fetch must write neither lyrics nor an error message.
+        XCTAssertEqual(
+            source.components(separatedBy: "guard !Task.isCancelled else { return }").count - 1, 3,
+            "each state write after an await must be guarded: disk cache, network success, catch"
+        )
+    }
+
     /// LRC files mark instrumental breaks with blank timestamped lines. Selecting one as the
     /// active line blanks the middle of Aura mode, which reads as a broken app.
     func testActiveLineSkipsBlankEntries() throws {
