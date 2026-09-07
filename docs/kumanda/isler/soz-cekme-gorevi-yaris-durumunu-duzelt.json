@@ -4,7 +4,7 @@
   "id": "soz-cekme-gorevi-yaris-durumunu-duzelt",
   "proje": "auralyrics",
   "baslik": "Hızlı şarkı değişiminde söz çekme görevi yarış durumunu düzelt",
-  "durum": "belirlenmis",
+  "durum": "yapildi",
   "duraklama": null,
   "giris_modu": "yap",
   "alan": "teknik",
@@ -12,9 +12,9 @@
   "oncelik": 2,
   "acilis": "2026-09-06",
   "acilis_oturumu": 0,
-  "yazan": "goc",
+  "yazan": "claude-opus-5",
   "ozet": "LyricsManager içindeki söz çekme görevinin referansı tutulmuyor, hızlı ardışık şarkı değişiminde birden fazla eş zamanlı görev aynı duruma yazabiliyor.",
-  "surum": 1,
+  "surum": 4,
   "kapsam": "LyricsManager.swift içinde tek bir değişiklik ve bir yeni test, başka dosyaya dokunmuyor.",
   "adimlar": [
     "LyricsManager'a görev referansını tutan yeni bir alan ekle",
@@ -36,5 +36,13 @@
   "kaynak": {
     "tur": "goc",
     "ref": "docs/board/2026-03-30-auralyrics-strategy/round-3/research/r3-cto-launch-tech.md"
-  }
+  },
+  "kanitlar": [
+    "LyricsManager.swift: fetchTask alani eklendi, fetchLyrics onbellek kontrolunden once oncekini iptal ediyor, durum yazan uc yerde (disk onbellegi, ag yaniti, catch) Task.isCancelled korumasi var.",
+    "swift test: 43 test, 0 hata. swift build -Xswiftc -swift-version -Xswiftc 6 temiz derliyor.",
+    "Test isirdigi dogrulandi: fetchTask?.cancel() satiri silinince testFetchTaskIsRetainedAndCancelled kirmiziya dondu, satir geri konunca yesile.",
+    "Kurucu 7 Eylul'de gercek uygulamada denedi: /Applications/AuraLyrics.app yeni derlemeyle degistirildi, Spotify'da iki sarki ust uste hizli gecildi, sorun gorulmedi. Birinci kabul olcutu boylece saglandi."
+  ],
+  "notlar": "Iki kabul olcutu de saglandi. Davranis testi yazilamadi cunku LyricsManager private init ile singleton ve fetcher ile SpotifyService.shared iceride sabit; isin kapsami baska dosyaya dokunmamak diyordu, o yuzden depodaki diger testlerle ayni kaynak inceleme bicimi kullanildi. Gercek davranis testi icin bagimlilik enjeksiyonu gerekir, o ayri bir is.",
+  "bitis": "2026-09-07"
 }

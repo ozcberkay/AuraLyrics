@@ -4,7 +4,7 @@
   "id": "reddit-hn-metinlerini-yaz",
   "proje": "auralyrics",
   "baslik": "Reddit ve Show HN gönderi metinlerini yaz",
-  "durum": "belirlenmis",
+  "durum": "yapiliyor",
   "duraklama": null,
   "giris_modu": "yap",
   "alan": "pazarlama",
@@ -12,9 +12,9 @@
   "oncelik": 2,
   "acilis": "2026-09-06",
   "acilis_oturumu": 0,
-  "yazan": "goc",
+  "yazan": "fable-oturum-27",
   "ozet": "r/macapps ve Show HN için gönderi metinlerini bir dosyaya yaz, AlternativeTo'ya listele.",
-  "surum": 1,
+  "surum": 3,
   "kapsam": "Yalnız metin taslağı ve AlternativeTo listelemesi, gönderiyi paylaşmak bu iş kapsamında değil.",
   "adimlar": [
     "Üç cümlelik tanıtım, klip, brew satırı, dürüst LRCLIB notu ve telemetri kullanılmadığı satırını içeren metni yaz",
@@ -35,5 +35,14 @@
   "kaynak": {
     "tur": "goc",
     "ref": "docs/board/2026-08-29-strategy-audit/report.md"
-  }
+  },
+  "sahiplenme": {
+    "agent": "fable-oturum-27",
+    "oturum": 27,
+    "alinma": "2026-09-07T00:35:34.232Z"
+  },
+  "notlar": "Oturum 27: iki gönderi metni docs/kumanda/arastirma/reddit-hn-metinleri.md dosyasına yazıldı. Dosyada r/macapps metni (başlık, alternatif başlık, flair ve klip kontrol listesi, İngilizce gövde) ve Show HN metni (77 karakterlik başlık, alternatif başlık, URL alanı, İngilizce gövde) duruyor. Metinlerdeki her olgu README.md, apps.json, Package.swift, kaynak kod ve strateji denetimi raporundan doğrulandı: 21 Swift dosyası, 2367 satır, sıfır bağımlılık, 43 test, ücretsiz ve MIT, brew komutu ve releases/latest bağlantısı. Sürüm numarası bilerek yazılmadı. Ticket'ın dört yazım adımı da metinlerde karşılandı: üç cümlelik tanıtım, klip, brew satırı, LRCLIB ve telemetri yok satırları, 'son test macOS 26.4, macOS 14 hedefi doğrulanmadı' notu, yalnız Spotify kapsamı ve Music.app cümlesi, Spotify'ın 2024 ücretsiz söz sınırı ve masaüstü tam ekran gerilemesi cümlesi. Beşinci adım olan AlternativeTo gönderimi kurucuda kaldı, çünkü hesap ve giriş yapılmış oturum istiyor. Gönderimin nasıl yapılacağı aynı dosyanın son bölümünde yazılı. Metinlerde kurucudan bekleyen tek yer tutucu r/macapps flair adı ve Reddit'e yüklenecek klip.",
+  "kanitlar": [
+    "Oturum 27: docs/kumanda/arastirma/reddit-hn-metinleri.md, Show HN ve r/macapps metinleri, olgular README ve kaynak koddan doğrulandı. AlternativeTo gönderimi kurucuda, o yüzden ticket yapiliyor kaldı."
+  ]
 }
