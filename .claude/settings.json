@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh /Users/berkayozcan/workspace/kumanda/kapi.sh"
+            "command": "sh /Users/berkayozcan/workspace/kumanda/gate.sh"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node /Users/berkayozcan/workspace/kumanda/panel.mjs --sessiz"
+            "command": "node /Users/berkayozcan/workspace/kumanda/panel.mjs --quiet"
           }
         ]
       }
@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node /Users/berkayozcan/workspace/kumanda/kok.mjs --oturum-artir && node /Users/berkayozcan/workspace/kumanda/acilis.mjs"
+            "command": "node /Users/berkayozcan/workspace/kumanda/root.mjs --increment-session && node /Users/berkayozcan/workspace/kumanda/startup.mjs"
           }
         ]
       }
