@@ -22,7 +22,16 @@ brew install --cask ozcberkay/tap/auralyrics
 
 Homebrew is the easiest route. The cask clears the quarantine flag, so the app opens straight away.
 
-Writing the tap name in full is what keeps this to one command. Homebrew taps it and trusts that one cask because you asked for it by name. If you run `brew tap` first and then `brew install --cask auralyrics`, you need `brew trust ozcberkay/tap` in between.
+Writing the tap name in full is what keeps this to one command. Homebrew taps it and trusts that one cask because you asked for it by name. If you run `brew tap` first and then `brew install --cask auralyrics`, you need `brew trust --cask ozcberkay/tap/auralyrics` in between.
+
+**Installed before Homebrew 6?** Homebrew 6.0 started asking you to trust third-party taps, and installs from before then were never trusted. `brew upgrade` stops at AuraLyrics until you trust it once:
+
+```bash
+brew trust --cask ozcberkay/tap/auralyrics
+brew upgrade --cask auralyrics
+```
+
+That trusts this one cask, not the whole tap. The upgrade may warn that the signer changed. Releases are signed ad-hoc, so each build has a different signature, and macOS may ask again for permission to control Spotify on the next launch.
 
 **Downloading the archive instead?** Releases are signed ad-hoc rather than notarized, so macOS blocks the first launch. Open the app once, then go to **System Settings → Privacy & Security** and click **Open Anyway** next to the AuraLyrics warning. Right-click → Open no longer works for this on macOS 15 and later.
 
