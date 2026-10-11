@@ -6,6 +6,9 @@ enum LyricsMatching {
     static let titleThreshold = 0.8
     static let artistFullThreshold = 0.6
     static let artistPartThreshold = 0.8
+    // Share of the shorter lyrics' distinct lines found in the other text, and the least number of lines that must be shared.
+    static let lyricsOverlapThreshold = 0.6
+    static let minSharedLines = 3
 
     // Same character set LRCLIB's server strips when it normalizes search input.
     private static let spaceCharacters = Set("`~!@#$%^&*()_|+-=?;:\",.<>{}[]\\/\u{0}\n")
@@ -134,5 +137,28 @@ enum LyricsMatching {
                 return (c, rank(c), abs(d - duration))
             }
             .min { ($0.1, $0.2) < ($1.1, $1.2) }?.0
+    }
+
+    /// Distinct normalized non-empty lines of a lyrics text, with any leading LRC time tags removed.
+    private static func lyricLines(_ text: String) -> Set<String> {
+        Set(text.components(separatedBy: .newlines)
+            .map { normalize($0.replacingOccurrences(of: #"^\s*(\[\d+:\d+(?:[.:]\d+)?\]\s*)+"#, with: "", options: .regularExpression)) }
+            .filter { !$0.isEmpty })
+    }
+
+    /// Overlap coefficient of the two texts' distinct lines (shared / the smaller set) and the shared count.
+    static func lyricsOverlap(plain: String, synced: String) -> (score: Double, shared: Int) {
+        let a = lyricLines(plain), b = lyricLines(synced)
+        let shared = a.intersection(b).count
+        guard shared > 0 else { return (0, 0) }
+        return (Double(shared) / Double(min(a.count, b.count)), shared)
+    }
+
+    /// True when a synced copy holds the same song as the plain text, whatever either title says.
+    // The overlap coefficient, not Jaccard or Dice: the plain text may carry extra lines (a hidden track)
+    // that a shorter synced copy lacks. The real case scored 0.73, unrelated songs score near 0.
+    static func lyricsMatch(plain: String, synced: String) -> Bool {
+        let overlap = lyricsOverlap(plain: plain, synced: synced)
+        return overlap.score >= lyricsOverlapThreshold && overlap.shared >= minSharedLines
     }
 }

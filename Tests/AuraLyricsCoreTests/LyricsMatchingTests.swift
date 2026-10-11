@@ -112,4 +112,57 @@ final class LyricsMatchingTests: XCTestCase {
         XCTAssertNotNil(pick([candidate(title: "Kralin Kizi")], title: "Kralın Kızı"))
         XCTAssertNotNil(pick([candidate(title: "Song - Remastered 2009")]))
     }
+
+    // The real case (a plain text with a hidden track, a shorter synced copy) scored 0.73 on the
+    // overlap coefficient while Jaccard was 0.31; unrelated songs score near 0. 0.6 sits between.
+    private let plainText = """
+        the lamp goes out
+        I walk the long road home
+        nobody counts the steps
+        the lamp goes out
+        hold the door for morning
+        the river keeps my name
+        a hidden track starts here
+        quiet bells in the yard
+        one more line from the extra song
+        and another from the extra song
+        """
+
+    func testLyricsMatchCaseShape() {
+        let synced = """
+            [00:05.10]The lamp goes out
+            [00:09.00]I walk the long road home
+            [00:14.20]Nobody counts the steps
+            [00:19.00]Hold the door for morning
+            [00:24.00]A line only the synced copy has
+            """
+        let overlap = M.lyricsOverlap(plain: plainText, synced: synced)
+        XCTAssertEqual(overlap.shared, 4)
+        XCTAssertEqual(overlap.score, 0.8, accuracy: 0.001)
+        XCTAssertTrue(M.lyricsMatch(plain: plainText, synced: synced))
+    }
+
+    func testLyricsMatchRejectsUnrelatedLyrics() {
+        let synced = "[00:01.00]completely different words\n[00:05.00]about something else\n[00:09.00]nothing in common here"
+        XCTAssertEqual(M.lyricsOverlap(plain: plainText, synced: synced).score, 0)
+        XCTAssertFalse(M.lyricsMatch(plain: plainText, synced: synced))
+    }
+
+    func testLyricsMatchStripsTimestamps() {
+        let synced = "[00:05.10][01:10.20]The lamp goes out\n[00:09:00] [02:00.000]I walk the long road home\n[00:14.20]Nobody counts the steps"
+        XCTAssertEqual(M.lyricsOverlap(plain: plainText, synced: synced).shared, 3)
+        XCTAssertTrue(M.lyricsMatch(plain: plainText, synced: synced))
+    }
+
+    func testLyricsMatchIgnoresCaseDiacriticsAndPunctuation() {
+        let plain = "Çok güzel, bir gün!\nYağmur yağıyor...\nİçimde bir şarkı"
+        let synced = "[00:01.00]cok guzel bir gun\n[00:04.00]YAGMUR YAGIYOR\n[00:08.00]icimde bir sarki"
+        XCTAssertTrue(M.lyricsMatch(plain: plain, synced: synced))
+    }
+
+    func testLyricsMatchNeedsThreeSharedLines() {
+        let plain = "line one\nline two\nline three"
+        XCTAssertFalse(M.lyricsMatch(plain: plain, synced: "[00:01.00]line one\n[00:02.00]line two"))
+        XCTAssertTrue(M.lyricsMatch(plain: plain, synced: "[00:01.00]line one\n[00:02.00]line two\n[00:03.00]line three"))
+    }
 }
