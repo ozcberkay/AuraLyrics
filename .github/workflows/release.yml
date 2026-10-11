@@ -76,6 +76,8 @@ jobs:
             echo "::error::Info.plist says $ACTUAL, expected $VERSION"
             exit 1
           fi
+          # The script signs ad-hoc without --deep, so verify the same way.
+          codesign --verify --strict dist/AuraLyrics.app
           echo "CFBundleVersion: $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PLIST")"
           echo "AuraLyricsGitCommit: $(/usr/libexec/PlistBuddy -c 'Print :AuraLyricsGitCommit' "$PLIST")"
 
@@ -135,7 +137,12 @@ jobs:
           SHA256 \`$SHA256\`
           NOTES_EOF
           )
-          gh release create "$TAG" AuraLyrics.tar.gz --title "AuraLyrics $VERSION" --notes "$NOTES"
+          # A re-run finds the release already there: replace the archive, keep the hand-edited prose.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" AuraLyrics.tar.gz --clobber
+          else
+            gh release create "$TAG" AuraLyrics.tar.gz --title "AuraLyrics $VERSION" --notes "$NOTES"
+          fi
 
       - name: Open the Homebrew tap pull request
         env:
@@ -159,6 +166,14 @@ jobs:
           grep -q "^  version \"$VERSION\"" "$CASK" || { echo "::error::version line not updated"; exit 1; }
           grep -q "^  sha256 \"$SHA256\"" "$CASK" || { echo "::error::sha256 line not updated"; exit 1; }
           git commit -am "auralyrics $VERSION"
-          git push origin "auralyrics-$VERSION"
-          gh pr create -R ozcberkay/homebrew-tap --base main --head "auralyrics-$VERSION" \
-            --title "auralyrics $VERSION" --body "Version and sha256 for AuraLyrics $VERSION, opened by the release workflow."
+          # A re-run finds the branch on the remote: record its tip as the lease base, then overwrite it.
+          BRANCH="auralyrics-$VERSION"
+          if git fetch origin "$BRANCH"; then
+            git push --force-with-lease="$BRANCH:$(git rev-parse FETCH_HEAD)" origin "$BRANCH"
+          else
+            git push origin "$BRANCH"
+          fi
+          if [ -z "$(gh pr list -R ozcberkay/homebrew-tap --head "$BRANCH" --state open --json number --jq '.[].number')" ]; then
+            gh pr create -R ozcberkay/homebrew-tap --base main --head "$BRANCH" \
+              --title "auralyrics $VERSION" --body "Version and sha256 for AuraLyrics $VERSION, opened by the release workflow."
+          fi

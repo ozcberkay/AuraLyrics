@@ -8,8 +8,14 @@ import Foundation
 /// misses), so a song without lyrics does not re-run the whole fallback chain on
 /// every play. Errors are temporary and are never stored.
 ///
-/// `@unchecked Sendable`: the memory cache is an NSCache (thread-safe) and every
-/// disk read and write happens under `lock`, so one key's file is never read
+/// `@unchecked Sendable`: the memory cache is an NSCache (thread-safe). Every
+/// write to it that follows a disk read, and every write from `store` and `remove`,
+/// runs on a private serial queue (shared by all instances), so an older disk entry
+/// can never overwrite or resurrect a newer change. A memory hit stays lock-free.
+/// Disk writes and deletes are queued with `async` so a slow write never blocks a
+/// caller. Disk reads go through the same queue with `sync`, so they run after every
+/// write issued before them: a read after `store` or `remove` returned sees that
+/// change even if NSCache evicted the memory copy, and one key's file is never read
 /// half-written or written by two callers at once.
 public final class LyricsCache: @unchecked Sendable {
 
@@ -34,7 +40,9 @@ public final class LyricsCache: @unchecked Sendable {
     private let fileName: @Sendable (String) -> String
     private let now: @Sendable () -> Date
     private let missLifetime: TimeInterval
-    private let lock = NSLock()
+    // Shared by all instances so a new instance over the same directory (a relaunch in
+    // tests) still reads after the earlier instance's pending writes.
+    private static let ioQueue = DispatchQueue(label: "AuraLyrics.LyricsCache.io")
 
     // In-memory layer for instant track switches within a session.
     private let lyricsMemoryCache: NSCache<NSString, Box> = {
@@ -65,13 +73,17 @@ public final class LyricsCache: @unchecked Sendable {
     /// The cached answer for `key`, or nil when there is none or a remembered miss
     /// is older than `missLifetime`.
     public func cachedState(for key: String) -> LyricsState? {
-        lock.lock(); defer { lock.unlock() }
         if let box = lyricsMemoryCache.object(forKey: key as NSString) {
             return state(from: box.entry)
         }
-        guard let entry = loadFromDisk(key: key) else { return nil }
-        lyricsMemoryCache.setObject(Box(entry), forKey: key as NSString)
-        return state(from: entry)
+        // Waits for pending writes, then re-checks memory in case a store landed meanwhile.
+        let entry: Entry? = Self.ioQueue.sync {
+            if let box = lyricsMemoryCache.object(forKey: key as NSString) { return box.entry }
+            guard let entry = loadFromDisk(key: key) else { return nil }
+            lyricsMemoryCache.setObject(Box(entry), forKey: key as NSString)
+            return entry
+        }
+        return entry.flatMap(state(from:))
     }
 
     /// Like `cachedState(for:)` for the current playback's key, but a served miss
@@ -99,28 +111,25 @@ public final class LyricsCache: @unchecked Sendable {
         case .error, .idle, .loading:
             return
         }
-        lock.lock(); defer { lock.unlock() }
-        lyricsMemoryCache.setObject(Box(entry), forKey: key as NSString)
-        saveToDisk(entry, key: key)
+        Self.ioQueue.sync { lyricsMemoryCache.setObject(Box(entry), forKey: key as NSString) }
+        Self.ioQueue.async { self.saveToDisk(entry, key: key) }
     }
 
     /// Forgets `key` in memory and on disk.
     public func remove(_ key: String) {
-        lock.lock(); defer { lock.unlock() }
-        lyricsMemoryCache.removeObject(forKey: key as NSString)
-        if let url = fileURL(forKey: key) {
-            try? FileManager.default.removeItem(at: url)
-        }
+        Self.ioQueue.sync { lyricsMemoryCache.removeObject(forKey: key as NSString) }
+        guard let url = fileURL(forKey: key) else { return }
+        Self.ioQueue.async { try? FileManager.default.removeItem(at: url) }
     }
 
     /// Serves `playback` from the cache, or fetches it and caches the result.
-    /// `forceRefresh` (the Retry button) drops the cached entry first and always asks
-    /// LRCLIB. Returns nil when the fetch was cancelled, and caches nothing then.
+    /// `forceRefresh` (the Retry button) skips the cache read and always asks LRCLIB.
+    /// The old entry is kept until a new result replaces it, so a cancelled fetch or an
+    /// error leaves it in place. Returns nil when the fetch was cancelled, and caches
+    /// nothing then.
     public func load(_ playback: PlaybackState, fetcher: LyricsFetcher, forceRefresh: Bool = false) async -> LyricsState? {
         let key = playback.lyricsCacheKey
-        if forceRefresh {
-            remove(key)
-        } else if let cached = cachedState(for: playback) {
+        if !forceRefresh, let cached = cachedState(for: playback) {
             return cached
         }
         guard let result = await fetcher.loadState(
@@ -146,17 +155,23 @@ public final class LyricsCache: @unchecked Sendable {
     }
 
     /// Reads the current format first, then the old bare `[LyricsLine]` files.
-    /// Anything else (corrupt, empty, unknown) counts as no entry.
+    /// Anything else (corrupt, empty, unknown) counts as no entry, and so does a lyrics
+    /// list that is empty or all blank, which older versions could write.
     private func loadFromDisk(key: String) -> Entry? {
         guard let url = fileURL(forKey: key), let data = try? Data(contentsOf: url) else { return nil }
         if let entry = try? JSONDecoder().decode(Entry.self, from: data),
            entry.lines != nil || entry.miss != nil {
+            if let lines = entry.lines, !Self.hasText(lines) { return nil }
             return entry
         }
-        if let lines = try? JSONDecoder().decode([LyricsLine].self, from: data) {
+        if let lines = try? JSONDecoder().decode([LyricsLine].self, from: data), Self.hasText(lines) {
             return Entry(lines: lines)
         }
         return nil
+    }
+
+    private static func hasText(_ lines: [LyricsLine]) -> Bool {
+        lines.contains { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     }
 
     /// A failed write is not critical: the memory layer still serves this session.

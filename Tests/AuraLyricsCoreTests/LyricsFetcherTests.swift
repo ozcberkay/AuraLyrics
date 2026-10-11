@@ -140,6 +140,14 @@ final class LyricsFetcherTests: XCTestCase {
         XCTAssertTrue(sleeps.delays.isEmpty, "no retry wait and no spacing")
     }
 
+    func testRateLimitWithoutRetryAfterAfterRetriedServerErrorIsNotRetried() async {
+        MockURLProtocol.resetWithHeaders(handler: sequence([(503, [:])], then: (429, Data())))
+        let state = await loadState()
+        XCTAssertEqual(state, .error(LyricsFetcher.serverBusyMessage))
+        XCTAssertEqual(MockURLProtocol.requests.count, 2, "the 503 is retried once, the 429 is not")
+        XCTAssertEqual(sleeps.delays, [1_000_000_000], "only the 503 retry wait")
+    }
+
     func testRateLimitWithRetryAfterOneSecondIsRetried() async throws {
         MockURLProtocol.resetWithHeaders(handler: sequence([(429, ["Retry-After": "1"])], then: (200, json(["syncedLyrics": "[00:01.00]ok"]))))
         let lines = try await fetch()
