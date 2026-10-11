@@ -25,7 +25,7 @@ class MenuBarManager: NSObject {
     // Track visibility
     private var isWindowVisible = true
 
-    // PERF-02: Stored NSMenuItem references — built once in buildMenu(), mutated in updateMenu()
+    // Stored NSMenuItem references, built once in buildMenu() and mutated in updateMenu()
     private var mainMenu: NSMenu!
     private var hideShowItem: NSMenuItem!
     private var modeSwitchItem: NSMenuItem!
@@ -53,7 +53,7 @@ class MenuBarManager: NSObject {
 
         // Apply initial state
         applyMode(currentMode)
-        // PERF-02: build menu once; updateMenu() is called at the end of buildMenu() to populate state
+        // Build menu once, updateMenu() is called at the end of buildMenu() to populate state
         buildMenu()
     }
 
@@ -96,7 +96,7 @@ class MenuBarManager: NSObject {
         updateMenu()
     }
 
-    // PERF-02: buildMenu() called ONCE from setup() — NSHostingView allocated exactly once here
+    // buildMenu() is called once from setup(), NSHostingView allocated exactly once here
     private func buildMenu() {
         mainMenu = NSMenu()
 
@@ -180,7 +180,7 @@ class MenuBarManager: NSObject {
         updateMenu()
     }
 
-    // PERF-02: updateMenu() ONLY mutates stored NSMenuItem references — no NSHostingView allocation
+    // updateMenu() only mutates stored NSMenuItem references, no NSHostingView allocation
     private func updateMenu() {
         // hideShowItem
         if !isWindowVisible {

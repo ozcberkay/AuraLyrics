@@ -1,7 +1,7 @@
 import XCTest
 
 final class SpotifyServiceTests: XCTestCase {
-    // TIMR-01: pollTimer is AnyCancellable? — verified by confirming Timer.scheduledTimer is absent
+    // pollTimer is AnyCancellable?, verified by confirming Timer.scheduledTimer is absent
     // (structural test — reads source, since we cannot access private pollTimer from tests)
     func testPollTimerCancellable() throws {
         // Verify via source: Timer.scheduledTimer must not appear in SpotifyService
@@ -17,7 +17,7 @@ final class SpotifyServiceTests: XCTestCase {
                       "SpotifyService must use Timer.publish for pollTimer")
     }
 
-    // THRD-03: Compiled NSAppleScript is reused — verified via source (lazy var pollScript)
+    // Compiled NSAppleScript is reused, verified via source (lazy var pollScript)
     func testPollScriptCompiledOnce() throws {
         let sourceURL = URL(fileURLWithPath: #file)
             .deletingLastPathComponent()
@@ -31,7 +31,7 @@ final class SpotifyServiceTests: XCTestCase {
                       "SpotifyService must compile the script explicitly (not per-call)")
     }
 
-    // TIMR-03: stopPolling called on NOT_RUNNING — verified via source
+    // stopPolling called on NOT_RUNNING, verified via source
     func testPollingPausesWhenNotRunning() throws {
         let sourceURL = URL(fileURLWithPath: #file)
             .deletingLastPathComponent()
@@ -48,7 +48,7 @@ final class SpotifyServiceTests: XCTestCase {
                       "fetchSpotifyState result must be handled via handleAppleScriptResult")
     }
 
-    // NETW-03: artworkTask?.cancel() before new Task — verified via source
+    // artworkTask?.cancel() before new Task, verified via source
     func testArtworkTaskCancelledOnTrackChange() throws {
         let sourceURL = URL(fileURLWithPath: #file)
             .deletingLastPathComponent()
@@ -66,7 +66,7 @@ final class SpotifyServiceTests: XCTestCase {
                       "fetchArtwork must check Task.isCancelled after await to prevent stale writes")
     }
 
-    // ERRH-03: consecutiveAppleScriptFailures counter and isDegraded published flag
+    // consecutiveAppleScriptFailures counter and isDegraded published flag
     func testAppleScriptHealthMonitor() throws {
         let sourceURL = URL(fileURLWithPath: #file)
             .deletingLastPathComponent()
@@ -76,15 +76,15 @@ final class SpotifyServiceTests: XCTestCase {
         let source = try String(contentsOf: sourceURL, encoding: .utf8)
         XCTAssertTrue(
             source.contains("consecutiveAppleScriptFailures"),
-            "ERRH-03: SpotifyService must track consecutiveAppleScriptFailures counter"
+            "SpotifyService must track consecutiveAppleScriptFailures counter"
         )
         XCTAssertTrue(
             source.contains("isDegraded"),
-            "ERRH-03: SpotifyService must publish isDegraded: Bool flag"
+            "SpotifyService must publish isDegraded: Bool flag"
         )
     }
 
-    // LOGG-01: all print() calls replaced with os.Logger — verified via source inspection
+    // all print() calls replaced with os.Logger, verified via source inspection
     func testNoRawPrintStatements() throws {
         let sourceURL = URL(fileURLWithPath: #file)
             .deletingLastPathComponent()
@@ -93,14 +93,14 @@ final class SpotifyServiceTests: XCTestCase {
             .appendingPathComponent("AuraLyrics/Services/SpotifyService.swift")
         let source = try String(contentsOf: sourceURL, encoding: .utf8)
         XCTAssertFalse(source.contains("print("),
-                       "LOGG-01: All print() must be replaced with os.Logger")
+                       "All print() must be replaced with os.Logger")
         XCTAssertTrue(source.contains("import OSLog"),
-                      "LOGG-01: OSLog must be imported")
+                      "OSLog must be imported")
         XCTAssertTrue(source.contains("Logger.spotifyService"),
-                      "LOGG-01: Logger.spotifyService must be used")
+                      "Logger.spotifyService must be used")
     }
 
-    // LOGG-02: user data in log messages is marked with privacy: .private
+    // user data in log messages is marked with privacy: .private
     func testUserDataPrivacyMarking() throws {
         let sourceURL = URL(fileURLWithPath: #file)
             .deletingLastPathComponent()
@@ -109,12 +109,12 @@ final class SpotifyServiceTests: XCTestCase {
             .appendingPathComponent("AuraLyrics/Services/SpotifyService.swift")
         let source = try String(contentsOf: sourceURL, encoding: .utf8)
         XCTAssertTrue(source.contains("privacy: .private"),
-                      "LOGG-02: User data must be marked .private in log messages")
+                      "User data must be marked .private in log messages")
         XCTAssertFalse(source.contains("print(\"[SpotifyService]"),
-                       "LOGG-02: Old-style print prefix must be gone")
+                       "Old-style print prefix must be gone")
     }
 
-    // ERRH-04: artwork URL validated before URLSession — HTTPS + trusted-host allowlist
+    // artwork URL validated before URLSession, HTTPS + trusted-host allowlist
     func testArtworkURLValidation() throws {
         let sourceURL = URL(fileURLWithPath: #file)
             .deletingLastPathComponent()
@@ -123,13 +123,13 @@ final class SpotifyServiceTests: XCTestCase {
             .appendingPathComponent("AuraLyrics/Services/SpotifyService.swift")
         let source = try String(contentsOf: sourceURL, encoding: .utf8)
         XCTAssertTrue(source.contains("isValidArtworkURL"),
-                      "ERRH-04: URL validation function must exist")
+                      "URL validation function must exist")
         XCTAssertTrue(source.contains("trustedArtworkHosts"),
-                      "ERRH-04: Trusted host allowlist must exist")
+                      "Trusted host allowlist must exist")
         XCTAssertTrue(source.contains("i.scdn.co"),
-                      "ERRH-04: i.scdn.co must be in the allowlist")
+                      "i.scdn.co must be in the allowlist")
         XCTAssertTrue(source.contains("url.scheme == \"https\""),
-                      "ERRH-04: HTTPS scheme check must be present")
+                      "HTTPS scheme check must be present")
     }
 
     // The failure counter and the degraded flag are @MainActor state. Mutating them

@@ -35,6 +35,6 @@ class FloatingPanel: NSPanel {
     
     func setClickThrough(_ enabled: Bool) {
         self.ignoresMouseEvents = enabled
-        // Lock state communicated via menu bar checkmark — no visual alpha change needed (UIPX-02)
+        // Lock state is shown via menu bar checkmark, no visual alpha change needed
     }
 }

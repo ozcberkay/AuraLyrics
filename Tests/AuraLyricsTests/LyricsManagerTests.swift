@@ -2,7 +2,7 @@ import XCTest
 
 final class LyricsManagerTests: XCTestCase {
 
-    // TIMR-02: 0.1s timer pauses when Spotify is not playing or lyrics are empty
+    // 0.1s timer pauses when Spotify is not playing or lyrics are empty
     // Verified via source inspection: LyricsManager must have conditional timer start/stop
     func testTimerPausesWhenNotPlaying() throws {
         let sourceURL = URL(fileURLWithPath: #file)
@@ -14,9 +14,9 @@ final class LyricsManagerTests: XCTestCase {
 
         // Must have conditional start: startTimerIfNeeded only when isPlaying && lyrics non-empty
         XCTAssertTrue(source.contains("startTimerIfNeeded"),
-                      "LyricsManager must have startTimerIfNeeded() for TIMR-02")
+                      "LyricsManager must have startTimerIfNeeded()")
         XCTAssertTrue(source.contains("stopTimer"),
-                      "LyricsManager must have stopTimer() for TIMR-02")
+                      "LyricsManager must have stopTimer()")
 
         // Must not unconditionally start the timer in init
         // (old code: init called startTimer() unconditionally)
@@ -27,12 +27,12 @@ final class LyricsManagerTests: XCTestCase {
         XCTAssertTrue(source.contains("isPlaying"),
                       "LyricsManager timer logic must check isPlaying state")
 
-        // Must restart timer when lyrics arrive (TIMR-02 pitfall: timer never restarts after lyrics fetch)
+        // Must restart timer when lyrics arrive (otherwise the timer never restarts after a lyrics fetch)
         XCTAssertTrue(source.contains("startTimerIfNeeded") && source.contains("lastState.isPlaying"),
                       "LyricsManager must restart timer after lyrics fetch if lastState.isPlaying")
     }
 
-    // ERRH-01 / ERRH-02: LyricsManager must use @Published var state: LyricsState (not lyrics+isLoading+error triple)
+    // LyricsManager must use @Published var state: LyricsState (not lyrics+isLoading+error triple)
     // and handle both .notFound and .instrumental error cases
     func testLyricsManagerUsesLyricsState() throws {
         let sourceURL = URL(fileURLWithPath: #file)
@@ -44,7 +44,7 @@ final class LyricsManagerTests: XCTestCase {
 
         XCTAssertTrue(
             source.contains("@Published var state: LyricsState"),
-            "ERRH-01: LyricsManager must use @Published var state: LyricsState"
+            "LyricsManager must use @Published var state: LyricsState"
         )
         // The fetch goes through LyricsCache.load, which calls the Core loadState.
         let cache = try String(contentsOf: sourceURL.deletingLastPathComponent()
