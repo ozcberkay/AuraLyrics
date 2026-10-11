@@ -216,9 +216,8 @@ class LyricsManager: ObservableObject {
             ) else { return }
 
             // CACH-01/02: Populate both cache layers, only for real lyrics. Errors are
-            // temporary and must never be cached. Done before the cancellation check on
-            // purpose: the response arrived, so it is worth caching even if the user
-            // already skipped to another track.
+            // temporary and must never be cached. A cancelled fetch (the user skipped to
+            // another track) already returned nil above, so it caches nothing.
             if case .loaded(let fetchedLyrics) = result {
                 self.lyricsMemoryCache.setObject(CachedLyricsLines(fetchedLyrics), forKey: cacheKey)
                 self.saveLyricsToDisk(fetchedLyrics, key: key, track: playbackState.track)

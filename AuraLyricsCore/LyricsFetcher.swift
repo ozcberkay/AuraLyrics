@@ -24,7 +24,8 @@ private extension URLError {
 // to hand to a Task. Without this, Swift 6 language mode rejects LyricsManager
 // passing `fetcher` across an isolation boundary.
 public final class LyricsFetcher: Sendable {
-    private let baseURL = "https://lrclib.net/api/get"
+    private static let getURL = "https://lrclib.net/api/get"
+    private static let searchURL = "https://lrclib.net/api/search"
     private let session: URLSession
     private let sleep: @Sendable (UInt64) async throws -> Void
 
@@ -34,6 +35,26 @@ public final class LyricsFetcher: Sendable {
     private static let maxRetries = 2
     private static let defaultRetryAfter: UInt64 = 1
     private static let maxRetryAfter: UInt64 = 5
+    /// Hard cap on HTTP requests per `fetchLyrics` call, retries included.
+    private static let maxRequests = 6
+    /// Minimum wait before every request after the first, so the chain never bursts LRCLIB.
+    private static let requestSpacing: UInt64 = 250_000_000
+
+    /// Per-call state of the fallback chain: the original query, requests sent, URLs tried.
+    private struct Chain {
+        let track: String
+        let artist: String
+        let duration: Double
+        var sent = 0
+        var urls = Set<URL>()
+    }
+
+    private struct BudgetExhausted: Error {}
+
+    private enum Step {
+        case get(String, String, String)  // title, artist, album ("" leaves album out)
+        case search(String, String)  // title, artist
+    }
 
     /// User-facing messages for `LyricsState.error`, shared by the app and the tests.
     public static let networkErrorMessage = "Can't reach LRCLIB. Check your connection."
@@ -61,9 +82,20 @@ public final class LyricsFetcher: Sendable {
     // Everything else propagates immediately (a 404 is a response, not an error, so it is
     // never retried). Cancellation stops the loop: the sleep throws, and a sleeper that
     // returns anyway is caught by the explicit check before the next request.
-    private func fetchWithRetry(request: URLRequest) async throws -> (Data, URLResponse) {
+    // Every send, retries included, counts against the chain's request budget, and every
+    // send after the first of the call waits `requestSpacing` unless a retry wait just ran.
+    private func fetchWithRetry(request: URLRequest, chain: inout Chain) async throws -> (Data, URLResponse) {
         var retries = 0
+        var waited = false
+        var lastFailure: Error?
         while true {
+            // Out of budget mid-retry: report what the last attempt failed with.
+            guard chain.sent < Self.maxRequests else { throw lastFailure ?? BudgetExhausted() }
+            if chain.sent > 0 && !waited {
+                try await sleep(Self.requestSpacing)
+                try Task.checkCancellation()
+            }
+            chain.sent += 1
             let delay: UInt64
             do {
                 let (data, response) = try await session.data(for: request)
@@ -71,14 +103,17 @@ public final class LyricsFetcher: Sendable {
                     return (data, response)
                 }
                 guard retries < Self.maxRetries else { throw LyricsError.serverUnavailable }
+                lastFailure = LyricsError.serverUnavailable
                 delay = Self.retryAfterDelay(http)
             } catch let error as URLError where error.isTransient {
                 guard retries < Self.maxRetries else { throw error }
+                lastFailure = error
                 delay = Self.transientDelays[retries]
             }
             retries += 1
             try await sleep(delay)
             try Task.checkCancellation()
+            waited = true
         }
     }
 
@@ -102,18 +137,105 @@ public final class LyricsFetcher: Sendable {
         }
     }
 
+    /// Walks the LRCLIB fallback chain until a step finds lyrics. A missing, empty or
+    /// unreadable answer moves on to the next step. A busy server moves on once and stops
+    /// the chain the second time. A network failure, an instrumental track or cancellation
+    /// ends the call right away.
     public func fetchLyrics(track: String, artist: String, album: String, duration: Double) async throws -> [LyricsLine] {
-        var urlComponents = URLComponents(string: baseURL)!
-        urlComponents.queryItems = [
-            URLQueryItem(name: "track_name", value: track),
-            URLQueryItem(name: "artist_name", value: artist),
-            URLQueryItem(name: "album_name", value: album),
-            URLQueryItem(name: "duration", value: String(Int(duration)))
-        ]
+        var chain = Chain(track: track, artist: artist, duration: duration)
+        var busySteps = 0
+        loop: for step in Self.steps(track: track, artist: artist, album: album) {
+            do {
+                switch step {
+                case let .get(title, artist, album):
+                    return try await get(title: title, artist: artist, album: album, chain: &chain)
+                case let .search(title, artist):
+                    return try await search(title: title, artist: artist, chain: &chain)
+                }
+            } catch is BudgetExhausted {
+                break loop
+            } catch LyricsError.serverUnavailable {
+                busySteps += 1
+                if busySteps == 2 { break loop }
+            } catch LyricsError.notFound, LyricsError.noData, LyricsError.decodeError {
+                continue
+            }
+        }
+        throw busySteps > 0 ? LyricsError.serverUnavailable : LyricsError.notFound
+    }
 
+    /// The fallback order: exact get, album-less get, search, then the album-less get and
+    /// search again with a cleaned title and with only the first of several artists.
+    private static func steps(track: String, artist: String, album: String) -> [Step] {
+        var steps: [Step] = [.get(track, artist, album)]
+        if !album.isEmpty { steps.append(.get(track, artist, "")) }
+        steps.append(.search(track, artist))
+        let cleaned = LyricsMatching.cleanTitle(track)
+        if let cleaned { steps += [.get(cleaned, artist, ""), .search(cleaned, artist)] }
+        let artists = LyricsMatching.splitArtists(artist)
+        if artists.count > 1 {
+            steps += [.get(cleaned ?? track, artists[0], ""), .search(cleaned ?? track, artists[0])]
+        }
+        return steps
+    }
+
+    /// `/api/get` needs an exact match. A plain-only hit gets one search for a synced copy
+    /// of the same track; if that search fails the plain lyrics are still returned.
+    private func get(title: String, artist: String, album: String, chain: inout Chain) async throws -> [LyricsLine] {
+        var items = [URLQueryItem(name: "track_name", value: title), URLQueryItem(name: "artist_name", value: artist)]
+        if !album.isEmpty { items.append(URLQueryItem(name: "album_name", value: album)) }
+        items.append(URLQueryItem(name: "duration", value: Self.durationString(chain.duration)))
+        let response = try Self.decode(LRCLibResponse.self, from: try await send(Self.getURL, items, chain: &chain))
+        let lines = try Self.lines(from: response)
+        guard (response.syncedLyrics ?? "").isEmpty else { return lines }
+
+        let query = [URLQueryItem(name: "track_name", value: title), URLQueryItem(name: "artist_name", value: artist)]
+        var results: [LRCLibResponse]?
+        do {
+            results = try await searchResults(query, chain: &chain)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch let error as URLError where error.code == .cancelled {
+            throw error
+        } catch {
+            results = nil  // any other failure keeps the plain lyrics
+        }
+        if let results,
+           let best = LyricsMatching.pickBest(results, title: chain.track, artist: chain.artist, duration: chain.duration),
+           !(best.syncedLyrics ?? "").isEmpty,
+           let synced = try? Self.lines(from: best) {
+            return synced
+        }
+        return lines
+    }
+
+    /// Searches by title and artist, falls back to a free-text query when that returns
+    /// nothing, and keeps the best match for the track the caller asked for.
+    private func search(title: String, artist: String, chain: inout Chain) async throws -> [LyricsLine] {
+        var results = try await searchResults(
+            [URLQueryItem(name: "track_name", value: title), URLQueryItem(name: "artist_name", value: artist)], chain: &chain)
+        if results.isEmpty {
+            results = try await searchResults([URLQueryItem(name: "q", value: "\(title) \(artist)")], chain: &chain)
+        }
+        guard let best = LyricsMatching.pickBest(results, title: chain.track, artist: chain.artist, duration: chain.duration) else {
+            throw LyricsError.notFound
+        }
+        return try Self.lines(from: best)
+    }
+
+    private func searchResults(_ items: [URLQueryItem], chain: inout Chain) async throws -> [LRCLibResponse] {
+        try Self.decode([LRCLibResponse].self, from: try await send(Self.searchURL, items, chain: &chain))
+    }
+
+    /// Sends one request and returns the body of a 200. A URL already tried in this call
+    /// is skipped as not found instead of being sent again.
+    private func send(_ base: String, _ items: [URLQueryItem], chain: inout Chain) async throws -> Data {
+        var urlComponents = URLComponents(string: base)!
+        urlComponents.queryItems = items
         guard let url = urlComponents.url else {
             throw LyricsError.invalidURL
         }
+        guard chain.urls.insert(url).inserted else { throw LyricsError.notFound }
 
         var request = URLRequest(url: url)
         request.timeoutInterval = 10  // explicit 10-second timeout on every request
@@ -121,7 +243,7 @@ public final class LyricsFetcher: Sendable {
         // contact the author of a misbehaving app instead of blocking it blindly.
         request.setValue(AppInfo.userAgent, forHTTPHeaderField: "User-Agent")
 
-        let (data, response) = try await fetchWithRetry(request: request)
+        let (data, response) = try await fetchWithRetry(request: request, chain: &chain)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw LyricsError.noData
@@ -139,43 +261,49 @@ public final class LyricsFetcher: Sendable {
         guard httpResponse.statusCode == 200 else {
             throw LyricsError.noData
         }
+        return data
+    }
 
+    private static func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
-
         do {
-            let libResponse = try decoder.decode(LRCLibResponse.self, from: data)
-
-            // Instrumental check comes before the synced/plain lyrics fallback
-            if libResponse.instrumental == true {
-                throw LyricsError.instrumental  // caller sets the .instrumental(track:artist:) state
-            }
-
-            let lines: [LyricsLine]
-            if let syncedLyrics = libResponse.syncedLyrics {
-                let parseResult = LRCParser.parse(lrcContent: syncedLyrics)
-                switch parseResult {
-                case .success(let parsedLines): lines = parsedLines
-                case .failure: throw LyricsError.decodeError
-                }
-            } else if let plainLyrics = libResponse.plainLyrics {
-                // Split plain lyrics into lines to avoid truncation in UI
-                lines = plainLyrics.components(separatedBy: .newlines)
-                    .map { $0.trimmingCharacters(in: .whitespaces) }
-                    .filter { !$0.isEmpty }
-                    .map { LyricsLine(id: UUID(), startTime: 0, text: $0, isSynced: false) }
-            } else {
-                lines = []
-            }
-            // An empty result is "no lyrics", not a successful load worth caching.
-            if lines.isEmpty { throw LyricsError.notFound }
-            return lines
+            return try decoder.decode(type, from: data)
         } catch {
-            // Re-throw LyricsError cases directly (instrumental, notFound, etc.)
-            if let lyricsError = error as? LyricsError {
-                throw lyricsError
-            }
             throw LyricsError.decodeError
         }
+    }
+
+    /// Seconds rounded to milliseconds, without trailing zeros: 215.7 -> "215.7", 215.0 -> "215".
+    private static func durationString(_ duration: Double) -> String {
+        let text = String((duration * 1000).rounded() / 1000)
+        return text.hasSuffix(".0") ? String(text.dropLast(2)) : text
+    }
+
+    /// Turns one LRCLIB record into lines: synced first, plain as a fallback.
+    private static func lines(from response: LRCLibResponse) throws -> [LyricsLine] {
+        // Instrumental check comes before the synced/plain lyrics fallback
+        if response.instrumental == true {
+            throw LyricsError.instrumental  // caller sets the .instrumental(track:artist:) state
+        }
+
+        let lines: [LyricsLine]
+        if let syncedLyrics = response.syncedLyrics, !syncedLyrics.isEmpty {
+            switch LRCParser.parse(lrcContent: syncedLyrics) {
+            case .success(let parsedLines): lines = parsedLines
+            case .failure: throw LyricsError.decodeError
+            }
+        } else if let plainLyrics = response.plainLyrics {
+            // Split plain lyrics into lines to avoid truncation in UI
+            lines = plainLyrics.components(separatedBy: .newlines)
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+                .map { LyricsLine(id: UUID(), startTime: 0, text: $0, isSynced: false) }
+        } else {
+            lines = []
+        }
+        // An empty result is "no lyrics", not a successful load worth caching.
+        if lines.isEmpty { throw LyricsError.notFound }
+        return lines
     }
 }
