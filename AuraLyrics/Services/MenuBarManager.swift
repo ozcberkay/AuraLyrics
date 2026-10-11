@@ -158,6 +158,10 @@ class MenuBarManager: NSObject {
 
         mainMenu.addItem(NSMenuItem.separator())
 
+        let aboutItem = NSMenuItem(title: "About AuraLyrics", action: #selector(showAbout), keyEquivalent: "")
+        aboutItem.target = self
+        mainMenu.addItem(aboutItem)
+
         // Attribution — lyrics come from the lrclib.net community database.
         let attributionItem = NSMenuItem(
             title: AppInfo.lyricsAttribution,
@@ -260,6 +264,19 @@ class MenuBarManager: NSObject {
 
     @objc private func quitApp() {
         NSApp.terminate(nil)
+    }
+
+    @objc private func showAbout() {
+        let credits = NSAttributedString(
+            string: AppInfo.repositoryURL,
+            attributes: [.link: AppInfo.repositoryURL]
+        )
+        NSApp.activate()
+        NSApp.orderFrontStandardAboutPanel(options: [
+            .applicationVersion: AppInfo.displayVersion,
+            .version: "",
+            .credits: credits,
+        ])
     }
 
     @objc private func openLyricsSource() {

@@ -3,6 +3,12 @@
 # Configuration
 APP_NAME="AuraLyrics"
 VERSION="1.2.0"          # single source of truth — written into Info.plist below
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+if [ "$(git -C "$REPO_ROOT" rev-parse --is-shallow-repository 2>/dev/null)" = "true" ]; then
+    echo "⚠️  Shallow clone: the build number comes from a truncated commit count."
+fi
+BUILD_NUMBER=$(git -C "$REPO_ROOT" rev-list --count HEAD 2>/dev/null || echo "$VERSION")
+GIT_COMMIT=$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo "")
 BUILD_DIR=".build/release"
 OUTPUT_DIR="dist"
 EXECUTABLE="$BUILD_DIR/$APP_NAME"
@@ -59,7 +65,9 @@ cat <<EOF > "$APP_BUNDLE/Contents/Info.plist"
     <key>CFBundleShortVersionString</key>
     <string>$VERSION</string>
     <key>CFBundleVersion</key>
-    <string>$VERSION</string>
+    <string>$BUILD_NUMBER</string>
+    <key>AuraLyricsGitCommit</key>
+    <string>$GIT_COMMIT</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>CFBundleIconFile</key>
@@ -90,7 +98,7 @@ SHA256=$(shasum -a 256 "$ZIP_NAME" | awk '{print $1}')
 echo ""
 echo "✅ Build Complete!"
 echo "---------------------------------------------------"
-echo "📁 Artifact: $OUTPUT_DIR/$ZIP_NAME  (version $VERSION)"
+echo "📁 Artifact: $OUTPUT_DIR/$ZIP_NAME  (version $VERSION, build $BUILD_NUMBER, commit ${GIT_COMMIT:-none})"
 echo "🔑 SHA256:   $SHA256"
 echo "---------------------------------------------------"
 echo "Use this SHA256 in your Homebrew formula."
