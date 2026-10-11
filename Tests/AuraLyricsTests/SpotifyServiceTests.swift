@@ -1,9 +1,6 @@
 import XCTest
-import Combine
 
 final class SpotifyServiceTests: XCTestCase {
-    var cancellables = Set<AnyCancellable>()
-
     // TIMR-01: pollTimer is AnyCancellable? — verified by confirming Timer.scheduledTimer is absent
     // (structural test — reads source, since we cannot access private pollTimer from tests)
     func testPollTimerCancellable() throws {

@@ -1,14 +1,17 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
-enum LyricsError: Error {
+public enum LyricsError: Error, Sendable {
     case invalidURL
     case noData
     case decodeError
     case notFound
-    case instrumental  // ERRH-02: lrclib.net returned instrumental=true
+    case instrumental  // lrclib.net returned instrumental=true
 }
 
-// NETW-04: transient URLError check — only these codes are worth retrying
+// Only these URLError codes are worth retrying; everything else fails immediately.
 private extension URLError {
     var isTransient: Bool {
         [.timedOut, .networkConnectionLost, .notConnectedToInternet,
@@ -16,21 +19,29 @@ private extension URLError {
     }
 }
 
-// Sendable: the only stored property is an immutable String, so instances are safe
+// Sendable: every stored property is immutable and Sendable, so instances are safe
 // to hand to a Task. Without this, Swift 6 language mode rejects LyricsManager
 // passing `fetcher` across an isolation boundary.
-final class LyricsFetcher: Sendable {
+public final class LyricsFetcher: Sendable {
     private let baseURL = "https://lrclib.net/api/get"
+    private let session: URLSession
+    private let retryDelays: [UInt64]
 
-    // NETW-04: retry helper — retries only on transient URLErrors; non-transient and non-URL errors
-    // propagate immediately (including LyricsError.notFound from 404, which is never retried).
+    /// `session` and `retryDelays` exist so tests can stub HTTP and skip the waits.
+    /// The defaults are what the app uses: the shared session, then retries after 2 s and 5 s.
+    public init(session: URLSession = .shared, retryDelays: [UInt64] = [2_000_000_000, 5_000_000_000]) {
+        self.session = session
+        self.retryDelays = retryDelays
+    }
+
+    // Retries only on transient URLErrors. Non-transient and non-URL errors propagate
+    // immediately (a 404 is a response, not an error, so it is never retried).
     private func fetchWithRetry(request: URLRequest) async throws -> (Data, URLResponse) {
-        let retryDelays: [UInt64] = [2_000_000_000, 5_000_000_000]  // 2s, 5s
         var lastError: Error
 
         // First attempt
         do {
-            return try await URLSession.shared.data(for: request)
+            return try await session.data(for: request)
         } catch let error as URLError {
             guard error.isTransient else { throw error }
             lastError = error
@@ -40,7 +51,7 @@ final class LyricsFetcher: Sendable {
         for delay in retryDelays {
             try await Task.sleep(nanoseconds: delay)
             do {
-                return try await URLSession.shared.data(for: request)
+                return try await session.data(for: request)
             } catch let error as URLError {
                 guard error.isTransient else { throw error }
                 lastError = error
@@ -51,7 +62,7 @@ final class LyricsFetcher: Sendable {
         throw lastError
     }
 
-    func fetchLyrics(track: String, artist: String, album: String, duration: Double) async throws -> [LyricsLine] {
+    public func fetchLyrics(track: String, artist: String, album: String, duration: Double) async throws -> [LyricsLine] {
         var urlComponents = URLComponents(string: baseURL)!
         urlComponents.queryItems = [
             URLQueryItem(name: "track_name", value: track),
@@ -64,9 +75,8 @@ final class LyricsFetcher: Sendable {
             throw LyricsError.invalidURL
         }
 
-        // NETW-02: explicit 10-second timeout on every URLRequest before sending
         var request = URLRequest(url: url)
-        request.timeoutInterval = 10  // NETW-02: explicit 10-second timeout
+        request.timeoutInterval = 10  // explicit 10-second timeout on every request
         // lrclib.net asks clients to identify themselves so its maintainer can
         // contact the author of a misbehaving app instead of blocking it blindly.
         request.setValue(AppInfo.userAgent, forHTTPHeaderField: "User-Agent")
@@ -77,7 +87,7 @@ final class LyricsFetcher: Sendable {
             throw LyricsError.noData
         }
 
-        // 404 is intentionally NOT retried — fetchWithRetry is only called for network errors
+        // 404 is intentionally NOT retried: fetchWithRetry only retries network errors
         if httpResponse.statusCode == 404 {
             throw LyricsError.notFound
         }
@@ -92,9 +102,9 @@ final class LyricsFetcher: Sendable {
         do {
             let libResponse = try decoder.decode(LRCLibResponse.self, from: data)
 
-            // ERRH-02: instrumental check BEFORE synced/plain lyrics fallback
+            // Instrumental check comes before the synced/plain lyrics fallback
             if libResponse.instrumental == true {
-                throw LyricsError.instrumental  // ERRH-02: caller sets .instrumental(track:artist:) state
+                throw LyricsError.instrumental  // caller sets the .instrumental(track:artist:) state
             }
 
             if let syncedLyrics = libResponse.syncedLyrics {

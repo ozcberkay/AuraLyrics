@@ -1,4 +1,5 @@
 import Foundation
+import AuraLyricsCore
 import Combine
 import CryptoKit
 import OSLog
@@ -51,14 +52,10 @@ class LyricsManager: ObservableObject {
             .first?.appendingPathComponent("AuraLyrics", isDirectory: true)
     }
 
-    /// Identifies one specific recording, not one song title.
-    ///
-    /// lrclib is queried with track, artist, album and duration, so a live take, a
-    /// remaster and the studio version of the same song return different lyrics and
-    /// different timings. Keying on title and artist alone made them share a single
-    /// cache entry, and whichever was played first won for all of them.
+    /// Identifies one specific recording, not one song title. The key itself lives in
+    /// AuraLyricsCore next to PlaybackState, where it is covered by behaviour tests.
     private func cacheKey(for state: PlaybackState) -> String {
-        "\(state.track)---\(state.artist)---\(state.album)---\(Int(state.duration))"
+        state.lyricsCacheKey
     }
 
     /// Hashing keeps the filename short and legal whatever characters a title
@@ -137,11 +134,8 @@ class LyricsManager: ObservableObject {
             return
         }
 
-        // Find the line where startTime <= currentPosition.
-        // Blank entries are skipped: LRC files mark instrumental gaps with empty lines, and
-        // landing on one blanks out the middle of Aura mode. Holding the last sung line is
-        // what every other lyrics player does through a break.
-        let matchingLine = lines.last { $0.startTime <= currentPosition && !$0.text.isEmpty }
+        // The last line that has started, skipping blank instrumental-gap entries.
+        let matchingLine = lines.activeLine(at: currentPosition)
 
         if activeLineID != matchingLine?.id {
             withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {

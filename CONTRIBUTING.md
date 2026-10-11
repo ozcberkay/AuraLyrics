@@ -44,10 +44,13 @@ true.
 
 ## Tests
 
-Add tests for behaviour you change. The suite is plain XCTest under
-`Tests/AuraLyricsTests` and runs in well under a second, so there is no excuse
-for skipping it. Anything touching `LRCParser`, `LyricsFetcher` or the caching
-layer should come with cases — that is where the bugs have historically been.
+Add tests for behaviour you change. The suite is plain XCTest in two targets and
+runs in well under a second, so there is no excuse for skipping it.
+`Tests/AuraLyricsCoreTests` covers the fetcher, the LRC parser and the cache key
+with real behaviour tests against the Foundation-only `AuraLyricsCore` library
+(HTTP is stubbed with a `URLProtocol`, no network). `Tests/AuraLyricsTests` covers
+the app. Anything touching `LRCParser`, `LyricsFetcher` or the caching layer
+should come with cases, because that is where the bugs have historically been.
 
 ## Commits
 

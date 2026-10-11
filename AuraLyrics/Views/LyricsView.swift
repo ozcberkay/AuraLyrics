@@ -1,4 +1,5 @@
 import SwiftUI
+import AuraLyricsCore
 
 struct LyricsView: View {
     @ObservedObject var spotifyService = SpotifyService.shared
