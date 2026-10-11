@@ -2,14 +2,7 @@ import Foundation
 import AuraLyricsCore
 import Combine
 import CryptoKit
-import OSLog
 import SwiftUI
-
-// CACH-01: NSCache requires AnyObject values; struct LyricsLine needs a class wrapper
-final class CachedLyricsLines: NSObject {
-    let lines: [LyricsLine]
-    init(_ lines: [LyricsLine]) { self.lines = lines }
-}
 
 @MainActor
 class LyricsManager: ObservableObject {
@@ -39,18 +32,14 @@ class LyricsManager: ObservableObject {
     /// lands last and shows the wrong song's lyrics.
     private var fetchTask: Task<Void, Never>?
 
-    // CACH-01: In-memory NSCache with countLimit=50 for instant within-session track switches
-    private let lyricsMemoryCache: NSCache<NSString, CachedLyricsLines> = {
-        let c = NSCache<NSString, CachedLyricsLines>()
-        c.countLimit = 50
-        return c
-    }()
-
-    // CACH-02: Disk cache in ~/Library/Caches/AuraLyrics/
-    private var cacheDirectory: URL? {
-        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)
-            .first?.appendingPathComponent("AuraLyrics", isDirectory: true)
-    }
+    // Memory and disk caching (~/Library/Caches/AuraLyrics) live in AuraLyricsCore,
+    // where they are behaviour-tested. Found lyrics are kept for good, "no lyrics"
+    // answers for 24 hours, errors never.
+    private let lyricsCache = LyricsCache(
+        directory: FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)
+            .first?.appendingPathComponent("AuraLyrics", isDirectory: true),
+        fileName: LyricsManager.hashedFileName
+    )
 
     /// Identifies one specific recording, not one song title. The key itself lives in
     /// AuraLyricsCore next to PlaybackState, where it is covered by behaviour tests.
@@ -59,39 +48,10 @@ class LyricsManager: ObservableObject {
     }
 
     /// Hashing keeps the filename short and legal whatever characters a title
-    /// contains — slashes, colons, and titles long enough to exceed the 255-byte
+    /// contains: slashes, colons, and titles long enough to exceed the 255-byte
     /// filename limit on their own.
-    private func cacheFileURL(forKey key: String) -> URL? {
-        let digest = SHA256.hash(data: Data(key.utf8))
-        let name = digest.map { String(format: "%02x", $0) }.joined()
-        return cacheDirectory?.appendingPathComponent("\(name).json")
-    }
-
-    private func saveLyricsToDisk(_ lines: [LyricsLine], key: String, track: String) {
-        guard let fileURL = cacheFileURL(forKey: key),
-              let dir = cacheDirectory else { return }
-        Task.detached(priority: .background) {
-            do {
-                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-                let data = try JSONEncoder().encode(lines)
-                try data.write(to: fileURL, options: .atomic)
-            } catch {
-                // Disk cache write failure is non-critical; in-memory cache still serves fast path
-                Logger.lyricsManager.error(
-                    "Disk cache write failed for track: \(track, privacy: .private), path: \(fileURL.path, privacy: .private) — \(error.localizedDescription, privacy: .public)"
-                )
-            }
-        }
-    }
-
-    private func loadLyricsFromDisk(key: String) -> [LyricsLine]? {
-        guard let fileURL = cacheFileURL(forKey: key) else { return nil }
-        do {
-            let data = try Data(contentsOf: fileURL)
-            return try JSONDecoder().decode([LyricsLine].self, from: data)
-        } catch {
-            return nil
-        }
+    private nonisolated static func hashedFileName(_ key: String) -> String {
+        SHA256.hash(data: Data(key.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
     private init() {
@@ -170,72 +130,47 @@ class LyricsManager: ObservableObject {
         }
     }
 
-    /// Re-runs the fetch for the current track, used by the Retry button in the error state.
-    /// A track change cancels it through the same fetchTask?.cancel() as any other fetch.
+    /// Re-runs the fetch for the current track, used by the Retry button. It drops any
+    /// cached answer for the track and always asks LRCLIB again, even when a "no lyrics"
+    /// answer is remembered. A track change cancels it through the same
+    /// fetchTask?.cancel() as any other fetch.
     func retry() {
         guard !lastState.track.isEmpty else { return }
-        fetchLyrics(for: lastState)
+        fetchLyrics(for: lastState, forceRefresh: true)
     }
 
-    private func fetchLyrics(for playbackState: PlaybackState) {
-        // Cancel first, before the cache check: a memory-cache hit returns synchronously
+    private func fetchLyrics(for playbackState: PlaybackState, forceRefresh: Bool = false) {
+        // Cancel first, before the cache check: a cache hit returns synchronously
         // and an older in-flight fetch would still overwrite it when it lands.
         fetchTask?.cancel()
 
-        // CACH-01: Check in-memory cache first — instant hit for same-session track revisits
-        let key = cacheKey(for: playbackState)
-        let cacheKey = key as NSString
-        if let cached = lyricsMemoryCache.object(forKey: cacheKey) {
-            self.state = .loaded(cached.lines)
-            if case .loaded(let lines) = self.state, self.lastState.isPlaying && !lines.isEmpty {
-                self.startTimerIfNeeded()
-            }
+        // A cache hit (lyrics, or a recent "no lyrics") shows at once, no network.
+        if !forceRefresh, let cached = lyricsCache.cachedState(for: playbackState) {
+            show(cached)
             return
         }
 
         self.state = .loading   // was: isLoading = true; error = nil
 
         fetchTask = Task {
-            // CACH-02: Check disk cache before going to network — survives app relaunches
-            if let diskLines = self.loadLyricsFromDisk(key: key) {
-                self.lyricsMemoryCache.setObject(CachedLyricsLines(diskLines), forKey: cacheKey)
-                guard !Task.isCancelled else { return }
-                self.state = .loaded(diskLines)
-                if case .loaded(let lines) = self.state, self.lastState.isPlaying && !lines.isEmpty {
-                    self.startTimerIfNeeded()
-                }
-                return
-            }
-
             // nil means the fetch was cancelled: leave the screen to whoever cancelled it.
-            guard let result = await fetcher.loadState(
-                track: playbackState.track,
-                artist: playbackState.artist,
-                album: playbackState.album,
-                duration: playbackState.duration
+            // The cache stores the result by its own rules and never stores errors.
+            guard let result = await lyricsCache.load(
+                playbackState,
+                fetcher: fetcher,
+                forceRefresh: forceRefresh
             ) else { return }
 
-            // CACH-01/02: Populate both cache layers, only for real lyrics. Errors are
-            // temporary and must never be cached. A cancelled fetch (the user skipped to
-            // another track) already returned nil above, so it caches nothing.
-            if case .loaded(let fetchedLyrics) = result {
-                self.lyricsMemoryCache.setObject(CachedLyricsLines(fetchedLyrics), forKey: cacheKey)
-                self.saveLyricsToDisk(fetchedLyrics, key: key, track: playbackState.track)
-            }
-
             guard !Task.isCancelled else { return }
-            self.state = result
-
-            // TIMR-02: restart timer if we were waiting for lyrics to arrive
-            if case .loaded(let lines) = self.state, self.lastState.isPlaying && !lines.isEmpty {
-                self.startTimerIfNeeded()
-            }
+            self.show(result)
         }
     }
-}
 
-// LOGG-01: os.Logger extension for LyricsManager — private scope, same pattern as SpotifyService
-private extension Logger {
-    static let subsystem = Bundle.main.bundleIdentifier ?? "com.auralyrics"
-    static let lyricsManager = Logger(subsystem: subsystem, category: "LyricsManager")
+    private func show(_ result: LyricsState) {
+        self.state = result
+        // Restart the timer if it stopped while we were waiting for lyrics to arrive.
+        if case .loaded(let lines) = self.state, self.lastState.isPlaying && !lines.isEmpty {
+            self.startTimerIfNeeded()
+        }
+    }
 }

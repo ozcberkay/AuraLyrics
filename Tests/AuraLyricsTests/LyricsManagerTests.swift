@@ -46,9 +46,17 @@ final class LyricsManagerTests: XCTestCase {
             source.contains("@Published var state: LyricsState"),
             "ERRH-01: LyricsManager must use @Published var state: LyricsState"
         )
+        // The fetch goes through LyricsCache.load, which calls the Core loadState.
+        let cache = try String(contentsOf: sourceURL.deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("AuraLyricsCore/LyricsCache.swift"), encoding: .utf8)
         XCTAssertTrue(
-            source.contains("fetcher.loadState("),
-            "LyricsManager must map fetch results to LyricsState through the Core loadState (notFound, instrumental, error)"
+            source.contains("lyricsCache.load("),
+            "LyricsManager must fetch through LyricsCache.load"
+        )
+        XCTAssertTrue(
+            cache.contains("fetcher.loadState("),
+            "LyricsCache must map fetch results to LyricsState through the Core loadState (notFound, instrumental, error)"
         )
     }
 
@@ -60,6 +68,8 @@ final class LyricsManagerTests: XCTestCase {
             .deletingLastPathComponent()
         let manager = try String(contentsOf: root.appendingPathComponent("AuraLyrics/Services/LyricsManager.swift"), encoding: .utf8)
         XCTAssertTrue(manager.contains("func retry()"), "LyricsManager must expose retry()")
+        XCTAssertTrue(manager.contains("fetchLyrics(for: lastState, forceRefresh: true)"),
+                      "retry() must bypass a cached \"no lyrics\" answer")
         for view in ["LyricsView", "AuraView"] {
             let source = try String(contentsOf: root.appendingPathComponent("AuraLyrics/Views/\(view).swift"), encoding: .utf8)
             XCTAssertTrue(source.contains("lyricsManager.retry()"), "\(view) must call lyricsManager.retry() from its error state")
@@ -89,11 +99,18 @@ final class LyricsManagerTests: XCTestCase {
             source.contains("fetchTask = Task {"),
             "the new fetch must be assigned to fetchTask, not started as a loose Task"
         )
-        // A cancelled fetch must write neither lyrics nor an error message.
+        // A cancelled fetch must write neither lyrics nor an error message. The cache
+        // lookup is synchronous now, so the network result is the only write after an await.
         XCTAssertEqual(
-            source.components(separatedBy: "guard !Task.isCancelled else { return }").count - 1, 2,
-            "each state write after an await must be guarded: disk cache, network result"
+            source.components(separatedBy: "guard !Task.isCancelled else { return }").count - 1, 1,
+            "the state write after the fetch await must be guarded"
         )
+        guard let cancel = source.range(of: "fetchTask?.cancel()"),
+              let lookup = source.range(of: "lyricsCache.cachedState(") else {
+            return XCTFail("fetchLyrics must cancel and then check the cache")
+        }
+        XCTAssertLessThan(cancel.lowerBound, lookup.lowerBound,
+                          "the previous fetch must be cancelled before the cache check")
     }
 
     /// LRC files mark instrumental breaks with blank timestamped lines. Selecting one as the

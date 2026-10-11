@@ -33,6 +33,19 @@ final class CoreHelpersTests: XCTestCase {
         XCTAssertEqual(a.lyricsCacheKey, "Song---Band---Studio---200")
     }
 
+    func testCacheKeyIsTrackIDWhenPresent() {
+        let withID = PlaybackState(track: "Song", artist: "Band", album: "Studio", isPlaying: true,
+                                   position: 0, duration: 200, artworkUrl: "", isSpotifyRunning: true,
+                                   timestamp: Date(), trackID: "spotify:track:abc")
+        XCTAssertEqual(withID.lyricsCacheKey, "spotify:track:abc")
+    }
+
+    func testCacheKeyFallsBackToMetadataWithoutTrackID() {
+        // The default trackID is "", so callers that never set it keep the metadata key.
+        XCTAssertEqual(state().trackID, "")
+        XCTAssertEqual(state().lyricsCacheKey, "Song---Band---Studio---200")
+    }
+
     // MARK: - App identity
 
     func testUserAgentIsContactable() {
