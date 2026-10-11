@@ -165,6 +165,15 @@ final class LyricsCacheTests: XCTestCase {
         XCTAssertEqual(MockURLProtocol.requests.count, 1)
     }
 
+    func testBadResponseErrorIsNotCached() async {
+        MockURLProtocol.reset { _ in (403, Data()) }
+        let cache = makeCache()
+        let state = await cache.load(playback(), fetcher: fetcher)
+        XCTAssertEqual(state, .error(LyricsFetcher.genericErrorMessage))
+        XCTAssertNil(cache.cachedState(for: "spotify:track:abc"), "nothing in memory")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: file(for: "spotify:track:abc").path), "nothing on disk")
+    }
+
     func testStoreIgnoresErrorAndPlaceholderStates() {
         let cache = makeCache()
         for state in [LyricsState.error("x"), .idle, .loading] {

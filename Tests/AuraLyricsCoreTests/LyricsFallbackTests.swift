@@ -203,6 +203,14 @@ final class LyricsFallbackTests: XCTestCase {
         XCTAssertEqual(texts(state), ["plain line"])
     }
 
+    // A bad response on one step moves on; the rest find nothing, yet the call ends as an error.
+    func testMixedBadResponseAndNotFoundEndsGenericErrorAfterEveryStep() async {
+        route { call in call.path == "/api/get" && call.query["album_name"] != nil ? (403, Data()) : nil }
+        let state = await load("Song (Live)", "A & B", album: "X")
+        XCTAssertEqual(state, .error(LyricsFetcher.genericErrorMessage))
+        XCTAssertEqual(calls.map(\.path), ["/api/get", "/api/get", "/api/search", "/api/search", "/api/get", "/api/search"])
+    }
+
     // g. Instrumental stops the chain on the spot.
     func testInstrumentalOnFirstStepStopsChain() async {
         route { _ in (200, Self.json(Self.record("Song", "Band", synced: nil, instrumental: true))) }
