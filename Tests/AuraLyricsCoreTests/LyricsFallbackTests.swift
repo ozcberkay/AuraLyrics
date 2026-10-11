@@ -50,10 +50,11 @@ final class LyricsFallbackTests: XCTestCase {
         try! JSONSerialization.data(withJSONObject: object)
     }
 
-    private static func record(_ track: String, _ artist: String, duration: Double = 200,
+    private static func record(_ track: String, _ artist: String, album: String? = nil, duration: Double = 200,
                                synced: String? = "[00:01.00]synced line", plain: String? = nil,
                                instrumental: Bool = false) -> [String: Any] {
         var r: [String: Any] = ["trackName": track, "artistName": artist, "duration": duration, "instrumental": instrumental]
+        if let album { r["albumName"] = album }
         if let synced { r["syncedLyrics"] = synced }
         if let plain { r["plainLyrics"] = plain }
         return r
@@ -337,5 +338,77 @@ final class LyricsFallbackTests: XCTestCase {
         let loaded = await state.value
         XCTAssertNil(loaded)
         XCTAssertEqual(calls.map(\.path), ["/api/get", "/api/get"], "no search request was sent")
+    }
+
+    // l. A plain-only exact hit whose synced copy has another title: found by lyrics content and duration.
+    private static let songLines = ["the lamp goes out", "I walk the long road home", "nobody counts the steps",
+                                    "hold the door for morning", "the river keeps my name", "ash on the window sill"]
+    private static let hiddenLines = ["a hidden track starts here", "quiet bells in the yard", "one more line from the extra song",
+                                      "and another from the extra song", "the gate is open now", "nothing left to say"]
+    // 12 distinct plain lines: the song (one line twice) plus a hidden track.
+    private static let plainText = (songLines + [songLines[0]] + hiddenLines).joined(separator: "\n")
+    // 8 synced lines, 6 distinct and all in the plain text: overlap 1.0 over the smaller set.
+    private static let syncedLines = songLines + [songLines[0], songLines[4]]
+    private static func lrc(_ lines: [String]) -> String {
+        lines.enumerated().map { String(format: "[%02d:%02d.00]%@", $0.offset / 6, ($0.offset % 6) * 10, $0.element) }.joined(separator: "\n")
+    }
+
+    private func routeLongTrack(syncedTitle: String, syncedLyrics: String, syncedDuration: Double) {
+        route { call in
+            if call.path == "/api/get" {
+                return (200, Self.json(Self.record("Long Song 2", "Band", album: "Album", duration: 1107, synced: nil, plain: Self.plainText)))
+            }
+            if call.query["track_name"] != nil {
+                return (200, Self.json([Self.record("Long Song 2", "Band", album: "Album", duration: 1107, synced: nil, plain: Self.plainText)]))
+            }
+            guard call.query["q"] == "Band Album" else { return nil }
+            return (200, Self.json([
+                Self.record(syncedTitle, "Band", album: "Album", duration: syncedDuration, synced: syncedLyrics),
+                Self.record(syncedTitle, "Band", album: "Album", duration: 236, synced: syncedLyrics),
+            ]))
+        }
+    }
+
+    func testSyncedCopyWithAnotherTitleIsFoundByLyricsContent() async {
+        routeLongTrack(syncedTitle: "Another Name", syncedLyrics: Self.lrc(Self.syncedLines), syncedDuration: 1106)
+        let state = await load("Long Song 2", "Band", album: "Album", duration: 1107)
+        guard case .loaded(let lines)? = state else { return XCTFail("expected .loaded, got \(String(describing: state))") }
+        XCTAssertTrue(lines.allSatisfy(\.isSynced))
+        XCTAssertEqual(lines.map(\.text), Self.syncedLines)
+        XCTAssertLessThanOrEqual(MockURLProtocol.requests.count, 6)
+        assertNoDuplicateURLs()
+    }
+
+    func testSyncedCopyOfAnotherSongIsRejected() async {
+        routeLongTrack(syncedTitle: "Another Name", syncedLyrics: Self.lrc(["unrelated words here", "nothing shared at all", "a different song", "with its own lines"]),
+                       syncedDuration: 1106)
+        let state = await load("Long Song 2", "Band", album: "Album", duration: 1107)
+        XCTAssertEqual(texts(state), Self.plainText.components(separatedBy: "\n"))
+        XCTAssertFalse(MockURLProtocol.requests.isEmpty)
+    }
+
+    func testSyncedCopyOffInDurationIsRejected() async {
+        routeLongTrack(syncedTitle: "Another Name", syncedLyrics: Self.lrc(Self.syncedLines), syncedDuration: 1103)
+        let state = await load("Long Song 2", "Band", album: "Album", duration: 1107)
+        XCTAssertEqual(texts(state), Self.plainText.components(separatedBy: "\n"))
+    }
+
+    // The album get is busy twice then not found, so the upgrade searches run out of budget.
+    func testUpgradeSearchesStopWhenBudgetIsUsed() async {
+        let albumGets = SleepRecorder()
+        route { call in
+            guard call.path == "/api/get" else { return nil }
+            if call.query["album_name"] != nil {
+                albumGets.record(0)
+                return albumGets.delays.count <= 2 ? (503, Data()) : (404, Data())
+            }
+            return (200, Self.json(Self.record("Long Song 2", "Band", duration: 1107, synced: nil, plain: Self.plainText)))
+        }
+        let state = await load("Long Song 2", "Band", album: "Album", duration: 1107)
+        XCTAssertEqual(texts(state), Self.plainText.components(separatedBy: "\n"))
+        XCTAssertEqual(MockURLProtocol.requests.count, 6)
+        XCTAssertFalse(calls.contains { $0.query["q"] == "Long Song Band" }, "the third upgrade search was not sent")
+        let others = calls.filter { $0.query["album_name"] == nil }
+        XCTAssertEqual(others.count, Set(others.map { "\($0.path)\($0.query.sorted { $0.key < $1.key })" }).count)
     }
 }

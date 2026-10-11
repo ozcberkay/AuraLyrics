@@ -49,6 +49,7 @@ public final class LyricsFetcher: Sendable {
     private struct Chain {
         let track: String
         let artist: String
+        let album: String
         let duration: Double
         var sent = 0
         var urls = Set<URL>()
@@ -165,7 +166,7 @@ public final class LyricsFetcher: Sendable {
     /// stops the chain the second time. A 429 without Retry-After stops the chain at once as
     /// busy. A network failure, an instrumental track or cancellation ends the call right away.
     public func fetchLyrics(track: String, artist: String, album: String, duration: Double) async throws -> [LyricsLine] {
-        var chain = Chain(track: track, artist: artist, duration: duration)
+        var chain = Chain(track: track, artist: artist, album: album, duration: duration)
         var busySteps = 0
         var badSteps = 0
         loop: for step in Self.steps(track: track, artist: artist, album: album) {
@@ -211,8 +212,10 @@ public final class LyricsFetcher: Sendable {
         return steps
     }
 
-    /// `/api/get` needs an exact match. A plain-only hit gets one search for a synced copy
-    /// of the same track; if that search fails the plain lyrics are still returned.
+    /// `/api/get` needs an exact match. A plain-only hit gets up to three searches for a synced
+    /// copy: by title and artist, by artist and album, then by the title without a trailing
+    /// number. A copy is taken when its duration fits and either its title and artist match or
+    /// its lyrics match the plain text. If every search fails the plain lyrics are still returned.
     private func get(title: String, artist: String, album: String, chain: inout Chain) async throws -> [LyricsLine] {
         var items = [URLQueryItem(name: "track_name", value: title), URLQueryItem(name: "artist_name", value: artist)]
         if !album.isEmpty { items.append(URLQueryItem(name: "album_name", value: album)) }
@@ -221,22 +224,33 @@ public final class LyricsFetcher: Sendable {
         let lines = try Self.lines(from: response)
         guard (response.syncedLyrics ?? "").isEmpty else { return lines }
 
-        let query = [URLQueryItem(name: "track_name", value: title), URLQueryItem(name: "artist_name", value: artist)]
-        var results: [LRCLibResponse]?
-        do {
-            results = try await searchResults(query, chain: &chain)
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch let error as URLError where error.code == .cancelled {
-            throw error
-        } catch {
-            results = nil  // any other failure keeps the plain lyrics
-        }
-        if let results,
-           let best = LyricsMatching.pickBest(results, title: chain.track, artist: chain.artist, duration: chain.duration),
-           !(best.syncedLyrics ?? "").isEmpty,
-           let synced = try? Self.lines(from: best) {
-            return synced
+        let plain = response.plainLyrics ?? ""
+        var queries = [[URLQueryItem(name: "track_name", value: title), URLQueryItem(name: "artist_name", value: artist)]]
+        if !chain.album.isEmpty { queries.append([URLQueryItem(name: "q", value: "\(artist) \(chain.album)")]) }
+        let base = (LyricsMatching.cleanTitle(title) ?? title)
+            .replacingOccurrences(of: #"\s+\d+$"#, with: "", options: .regularExpression)
+        if base != title { queries.append([URLQueryItem(name: "q", value: "\(base) \(artist)")]) }
+        for query in queries {
+            let results: [LRCLibResponse]
+            do {
+                results = try await searchResults(query, chain: &chain)
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch let error as URLError where error.code == .cancelled {
+                throw error
+            } catch {
+                break  // out of budget or any other failure keeps the plain lyrics
+            }
+            let accepted = results.filter { candidate in
+                guard let d = candidate.duration, abs(d - chain.duration) <= LyricsMatching.maxDurationDifference,
+                      let synced = candidate.syncedLyrics, !synced.isEmpty else { return false }
+                return LyricsMatching.lyricsMatch(plain: plain, synced: synced)
+                    || LyricsMatching.pickBest([candidate], title: chain.track, artist: chain.artist, duration: chain.duration) != nil
+            }
+            if let best = accepted.min(by: { abs(($0.duration ?? 0) - chain.duration) < abs(($1.duration ?? 0) - chain.duration) }),
+               let synced = try? Self.lines(from: best) {
+                return synced
+            }
         }
         return lines
     }

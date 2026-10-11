@@ -27,18 +27,22 @@ final class LiveCoverageTests: XCTestCase {
 
         let fetcher = LyricsFetcher()
         var found = 0
+        var synced = 0
         for track in corpus.tracks {
             // Spotify reports several artists as one comma-joined string.
             let artist = track.artists.joined(separator: ", ")
             let state = await fetcher.loadState(track: track.title, artist: artist, album: track.album,
                                                 duration: Double(track.duration_ms) / 1000.0)
             switch state {
-            case .loaded?, .instrumental?:
+            case .loaded(let lines)?:
+                found += 1
+                if lines.contains(where: \.isSynced) { synced += 1 }
+            case .instrumental?:
                 found += 1
             default:
                 print("MISS \(state.map { "\($0)" } ?? "nil") | \(track.title) | \(artist) | \(track.album)")
             }
         }
-        print("coverage: \(found)/\(corpus.tracks.count)")
+        print("coverage: \(found)/\(corpus.tracks.count) synced: \(synced)")
     }
 }
