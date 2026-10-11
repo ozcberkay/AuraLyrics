@@ -41,7 +41,8 @@ docs/board/
 # Tool residue
 .bg-shell/
 
-# Kumanda verisi. Acik kaynak repo'da durmaz: is kayitlari, saglik notlari,
-# rakip sayilari ve risk degerlendirmesi ic strateji, docs/board/ ile ayni
-# sebepten disarida. Veri yerelde kalir, panel yerelde uretilir.
+# Local project tracking data, never pushed
 docs/kumanda/
+
+# Local Claude Code settings
+.claude/settings.local.json

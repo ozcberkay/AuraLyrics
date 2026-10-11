@@ -1,6 +1,6 @@
 import Foundation
 
-// Shared test data factories for Phase 1 unit tests
+// Shared test data factories for unit tests
 enum Fixtures {
     // PlaybackState equivalents for test assertions
     // Note: PlaybackState.empty and .notRunning are static members on the production type.

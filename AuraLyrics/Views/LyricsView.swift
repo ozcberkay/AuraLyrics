@@ -23,7 +23,7 @@ struct LyricsView: View {
                     .fill(Color.clear)
                     .frame(height: 20)
 
-                // ERRH-03: degraded check before isPlaying — health trumps playback state
+                // Degraded check before isPlaying: health trumps playback state
                 if spotifyService.isDegraded {
                     Spacer()
                     VStack(spacing: 8) {
@@ -56,7 +56,7 @@ struct LyricsView: View {
                     Divider()
                         .opacity(0.3)
 
-                    // ERRH-01/02: switch on LyricsState — replaces isLoading/error/else chain
+                    // Switch on LyricsState, replacing the isLoading/error/else chain
                     switch lyricsManager.state {
                     case .idle, .loading:
                         Spacer()
@@ -64,7 +64,7 @@ struct LyricsView: View {
                         Spacer()
 
                     case .notFound(let track, let artist):
-                        // ERRH-01: show track info + "No lyrics available"
+                        // Show track info + "No lyrics available"
                         Spacer()
                         VStack(spacing: 8) {
                             Text(track)
@@ -82,7 +82,7 @@ struct LyricsView: View {
                         Spacer()
 
                     case .instrumental(let track, let artist):
-                        // ERRH-02: music note icon + "Instrumental"
+                        // Music note icon + "Instrumental"
                         Spacer()
                         VStack(spacing: 8) {
                             Image(systemName: "music.note")
@@ -117,7 +117,7 @@ struct LyricsView: View {
 
                     case .loaded(let lines):
                         if lyricsManager.isSynced {
-                            // UIPX-03: synced path — ScrollViewReader + animated auto-scroll to active line
+                            // Synced path: ScrollViewReader + animated auto-scroll to active line
                             ScrollViewReader { proxy in
                                 ScrollView(showsIndicators: false) {
                                     LazyVStack(spacing: 24) {
@@ -152,7 +152,7 @@ struct LyricsView: View {
                                 }
                             }
                         } else {
-                            // UIPX-03: unsynced path — plain scrollable list, no auto-scroll, user scrolls freely
+                            // Unsynced path: plain scrollable list, no auto-scroll, user scrolls freely
                             ScrollView(showsIndicators: false) {
                                 LazyVStack(spacing: 16) {
                                     Color.clear.frame(height: 20)

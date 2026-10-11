@@ -12,7 +12,7 @@ final class CachingTests: XCTestCase {
             .appendingPathComponent(file)
     }
 
-    // MARK: - CACH-01: In-memory NSCache for lyrics
+    // MARK: - In-memory NSCache for lyrics
 
     /// The memory cache lives in AuraLyricsCore's LyricsCache (behaviour-tested there);
     /// LyricsManager must route through it, and it must stay bounded at 50 entries.
@@ -30,7 +30,7 @@ final class CachingTests: XCTestCase {
                       "The memory cache countLimit must be 50")
     }
 
-    // MARK: - CACH-02: Disk cache in ~/Library/Caches/AuraLyrics/
+    // MARK: - Disk cache in ~/Library/Caches/AuraLyrics/
 
     /// The disk cache must live in ~/Library/Caches/AuraLyrics/ as JSON files.
     func testDiskCachePresent() throws {
@@ -45,51 +45,51 @@ final class CachingTests: XCTestCase {
                       "LyricsCache must have a saveToDisk function")
     }
 
-    // MARK: - CACH-03: Artwork memory cache (Plan 02)
+    // MARK: - Artwork memory cache
 
-    /// CACH-03: SpotifyService must have NSCache for artwork images with countLimit=20
+    /// SpotifyService must have NSCache for artwork images with countLimit=20
     func testArtworkMemoryCachePresent() throws {
         let source = try String(contentsOf: sourcePath("AuraLyrics/Services/SpotifyService.swift"), encoding: .utf8)
 
         XCTAssertTrue(source.contains("artworkCache"),
-                      "CACH-03: SpotifyService must have artworkCache property (Plan 02)")
+                      "SpotifyService must have artworkCache property")
         XCTAssertTrue(source.contains("NSCache"),
-                      "CACH-03: SpotifyService must use NSCache for artwork caching (Plan 02)")
+                      "SpotifyService must use NSCache for artwork caching")
         XCTAssertTrue(source.contains("20"),
-                      "CACH-03: Artwork NSCache countLimit must be 20 (Plan 02)")
+                      "Artwork NSCache countLimit must be 20")
     }
 
-    // MARK: - CACH-04: Color cache for artwork average colors (Plan 02)
+    // MARK: - Color cache for artwork average colors
 
-    /// CACH-04: SpotifyService must cache computed artwork average colors
+    /// SpotifyService must cache computed artwork average colors
     func testColorCachePresent() throws {
         let source = try String(contentsOf: sourcePath("AuraLyrics/Services/SpotifyService.swift"), encoding: .utf8)
 
         XCTAssertTrue(source.contains("artworkAverageColor"),
-                      "CACH-04: SpotifyService must have artworkAverageColor cache (Plan 02)")
+                      "SpotifyService must have artworkAverageColor cache")
     }
 
-    // MARK: - PERF-01: Adaptive polling interval (Plan 03)
+    // MARK: - Adaptive polling interval
 
-    /// PERF-01: SpotifyService must support adaptive polling intervals
+    /// SpotifyService must support adaptive polling intervals
     func testAdaptivePollingPresent() throws {
         let source = try String(contentsOf: sourcePath("AuraLyrics/Services/SpotifyService.swift"), encoding: .utf8)
 
         XCTAssertTrue(source.contains("currentPollInterval"),
-                      "PERF-01: SpotifyService must have currentPollInterval property (Plan 03)")
+                      "SpotifyService must have currentPollInterval property")
         XCTAssertTrue(source.contains("5.0"),
-                      "PERF-01: SpotifyService adaptive polling must use 5.0s as a polling interval (Plan 03)")
+                      "SpotifyService adaptive polling must use 5.0s as a polling interval")
     }
 
-    // MARK: - PERF-02: MenuBarManager NSHostingView rebuild prevention (Plan 03)
+    // MARK: - MenuBarManager NSHostingView rebuild prevention
 
-    /// PERF-02: updateMenu() must NOT rebuild NSHostingView on every call — only create it once
+    /// updateMenu() must NOT rebuild NSHostingView on every call, only create it once
     func testMenuNoHostingViewRebuild() throws {
         let source = try String(contentsOf: sourcePath("AuraLyrics/Services/MenuBarManager.swift"), encoding: .utf8)
 
         // Find the updateMenu() function body
         // Strategy: locate updateMenu() and check if NSHostingView is constructed there
-        // After Plan 03 fix, NSHostingView(rootView:) should NOT appear inside updateMenu()
+        // After the fix, NSHostingView(rootView:) should NOT appear inside updateMenu()
         let containsHostingViewInUpdateMenu: Bool = {
             // Extract the updateMenu function body
             guard let updateMenuRange = source.range(of: "func updateMenu()") else { return false }
@@ -105,7 +105,7 @@ final class CachingTests: XCTestCase {
         }()
 
         XCTAssertFalse(containsHostingViewInUpdateMenu,
-                       "PERF-02: updateMenu() must not rebuild NSHostingView(rootView:) on every call — host view should be created once and reused (Plan 03)")
+                       "updateMenu() must not rebuild NSHostingView(rootView:) on every call, host view should be created once and reused")
     }
 
     // MARK: - Cache key identifies a recording, not a song title

@@ -83,7 +83,7 @@ class WindowManager: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
     
-    // MARK: - Frame Persistence (UIPX-01)
+    // MARK: - Frame Persistence
 
     func windowDidMove(_ notification: Notification) {
         guard let panel = notification.object as? NSPanel else { return }

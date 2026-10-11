@@ -28,7 +28,7 @@ struct AuraView: View {
             Color.clear
 
             VStack(spacing: 8 * currentSize.scaleFactor) {
-                // ERRH-03: degraded check before state switch — health trumps playback state
+                // Degraded check before the state switch: health trumps playback state
                 if spotifyService.isDegraded {
                     Spacer()
                     VStack(spacing: 8 * currentSize.scaleFactor) {
@@ -139,7 +139,7 @@ struct AuraView: View {
                     }
 
                 case .notFound(let track, let artist):
-                    // ERRH-01: show track info + "No lyrics available" in Aura mode
+                    // Show track info + "No lyrics available" in Aura mode
                     VStack(spacing: 4 * currentSize.scaleFactor) {
                         HaloLine(text: track,
                                  font: .system(size: currentSize.trackTitleFontSize, weight: .bold, design: .rounded),
@@ -160,7 +160,7 @@ struct AuraView: View {
                     }
 
                 case .instrumental(let track, let artist):
-                    // ERRH-02: music note + "Instrumental" in Aura mode
+                    // Music note + "Instrumental" in Aura mode
                     VStack(spacing: 4 * currentSize.scaleFactor) {
                         Image(systemName: "music.note")
                             .font(.system(size: currentSize.activeFontSize * 0.8))

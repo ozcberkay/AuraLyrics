@@ -3,7 +3,7 @@ import AppKit
 extension NSImage {
     /// Resizes the image to a small size to performance-efficiently extract colors.
     func resized(to targetSize: NSSize) -> NSImage? {
-        // UIPX-04: CGContext replaces deprecated lockFocus/unlockFocus (deprecated macOS 10.14)
+        // CGContext replaces deprecated lockFocus/unlockFocus (deprecated macOS 10.14)
         // CGContext is thread-safe and Retina-correct; lockFocus requires main thread and AppKit context
         guard let cgImage = self.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
             return nil

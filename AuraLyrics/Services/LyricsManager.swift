@@ -8,7 +8,7 @@ import SwiftUI
 class LyricsManager: ObservableObject {
     static let shared = LyricsManager()
 
-    // ERRH-01/02: single typed state replaces lyrics+isLoading+error triple
+    // Single typed state replaces lyrics+isLoading+error triple
     @Published var state: LyricsState = .idle
 
     var isSynced: Bool {
@@ -122,7 +122,7 @@ class LyricsManager: ObservableObject {
         self.currentPosition = state.position
         updateActiveLine()
 
-        // TIMR-02: pause timer when not playing or no lyrics loaded
+        // Pause timer when not playing or no lyrics loaded
         if case .loaded(let lines) = self.state, state.isPlaying && !lines.isEmpty {
             startTimerIfNeeded()
         } else {

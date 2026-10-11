@@ -13,33 +13,33 @@ class SpotifyService: ObservableObject {
     @Published var currentState: PlaybackState = .empty
     @Published var artworkImage: NSImage? = nil
 
-    // CACH-03: in-memory artwork cache — NSImage is NSObject, no wrapper needed
+    // In-memory artwork cache. NSImage is NSObject, no wrapper needed
     private let artworkCache: NSCache<NSString, NSImage> = {
         let c = NSCache<NSString, NSImage>()
-        c.countLimit = 20   // CACH-03
+        c.countLimit = 20
         return c
     }()
 
-    // CACH-04: color extraction result — computed once per artwork URL, nil on track change
+    // Color extraction result, computed once per artwork URL, nil on track change
     @Published var artworkAverageColor: NSColor? = nil
 
-    // ERRH-03: AppleScript health monitor
+    // AppleScript health monitor
     private var consecutiveAppleScriptFailures = 0
     private let appleScriptFailureThreshold = 5
     @Published var isDegraded: Bool = false
 
     private var cancellables = Set<AnyCancellable>()
     private var pollTimer: AnyCancellable?
-    // PERF-01: track current interval so startPolling(interval:) can no-op on same-interval calls
+    // Track current interval so startPolling(interval:) can no-op on same-interval calls
     private var currentPollInterval: TimeInterval = 2.0
 
-    // NETW-03: stored task reference — cancelled before starting a new fetch
+    // Stored task reference, cancelled before starting a new fetch
     private var artworkTask: Task<Void, Never>?
 
-    // ERRH-04: allowlist of trusted Spotify CDN hostnames for artwork URLs
+    // Allowlist of trusted Spotify CDN hostnames for artwork URLs
     private static let trustedArtworkHosts: Set<String> = ["i.scdn.co", "mosaic.scdn.co"]
 
-    // ERRH-04: validate artwork URL — must be HTTPS and from a trusted host
+    // Validate artwork URL, must be HTTPS and from a trusted host
     private func isValidArtworkURL(_ urlString: String) -> Bool {
         guard let url = URL(string: urlString),
               url.scheme == "https",
@@ -53,7 +53,7 @@ class SpotifyService: ObservableObject {
         return true
     }
 
-    // THRD-02: All AppleScript execution runs on this serial queue — never main thread
+    // All AppleScript execution runs on this serial queue, never main thread
     // Serial (not concurrent) by default — NSAppleScript is not thread-safe
     private let appleScriptQueue = DispatchQueue(
         label: "com.auralyrics.applescript",
@@ -103,7 +103,7 @@ class SpotifyService: ObservableObject {
         init(_ script: NSAppleScript) { self.script = script }
     }
 
-    // THRD-03: Compiled once on first use. lazy var init runs on @MainActor (XProtect-safe).
+    // Compiled once on first use. lazy var init runs on @MainActor (XProtect-safe).
     // Subsequent executeAndReturnError calls skip recompilation.
     private lazy var pollScript: CompiledScript? = {
         let script = NSAppleScript(source: pollScriptSource)
@@ -132,7 +132,7 @@ class SpotifyService: ObservableObject {
             .store(in: &cancellables)
     }
 
-    // PERF-01: adaptive polling — 2.0s playing, 5.0s paused, 10.0s not running
+    // Adaptive polling, 2.0s playing, 5.0s paused, 10.0s not running
     private func startPolling(interval: TimeInterval) {
         // No-op if timer is already running at the same interval
         guard pollTimer == nil || currentPollInterval != interval else { return }
@@ -181,10 +181,10 @@ class SpotifyService: ObservableObject {
 
     /// Executes the AppleScript to get the current state
     func fetchSpotifyState() {
-        // THRD-03: reuse compiled instance — lazy init runs on @MainActor on first call
+        // Reuse compiled instance, lazy init runs on @MainActor on first call
         guard let compiled = pollScript else { return }
 
-        // THRD-02: dispatch execution to serial background queue — never blocks main thread.
+        // Dispatch execution to serial background queue, never blocks main thread.
         // The closure runs the script and nothing else: the failure counter and the
         // degraded flag are main-actor state, so they are only ever touched inside the
         // Task below. Mutating them here raced with every main-thread read.
@@ -196,7 +196,7 @@ class SpotifyService: ObservableObject {
             Task { @MainActor [weak self] in
                 guard let self else { return }
 
-                // ERRH-03: accumulate consecutive failures; degrade after threshold
+                // Accumulate consecutive failures; degrade after threshold
                 guard let result else {
                     self.consecutiveAppleScriptFailures += 1
                     if self.consecutiveAppleScriptFailures >= self.appleScriptFailureThreshold {
@@ -214,7 +214,7 @@ class SpotifyService: ObservableObject {
     // @MainActor is inherited from the class — no annotation needed on the method
     private func handleAppleScriptResult(_ result: String) {
         if result == "NOT_RUNNING" {
-            // PERF-01: slow-poll at 10s instead of stopping entirely — reduces CPU while Spotify is absent
+            // Slow-poll at 10s instead of stopping entirely, reduces CPU while Spotify is absent
             startPolling(interval: 10.0)
             if currentState != .notRunning {
                 currentState = .notRunning
@@ -225,7 +225,7 @@ class SpotifyService: ObservableObject {
 
         if result.starts(with: "ERROR") { return }
 
-        // TIMR-03: resume polling if it was paused; parseResult will immediately adjust to 5.0 if paused
+        // Resume polling if it was paused; parseResult will immediately adjust to 5.0 if paused
         startPolling(interval: 2.0)
 
         parseResult(result)
@@ -245,9 +245,9 @@ class SpotifyService: ObservableObject {
 
         let artworkUrl = parts[6]
 
-        // Check if artwork URL changed, then fetch (ERRH-04: validate before URLSession)
+        // Check if artwork URL changed, then fetch, validating before URLSession
         if artworkUrl != currentState.artworkUrl && isValidArtworkURL(artworkUrl) {
-            // CACH-04: clear stale color before fetching new artwork
+            // Clear stale color before fetching new artwork
             self.artworkAverageColor = nil
             fetchArtwork(url: artworkUrl)
         }
@@ -279,7 +279,7 @@ class SpotifyService: ObservableObject {
 
         let isPlaying = (stateString == "playing")
 
-        // PERF-01: adjust poll interval before publishing state — 2s when playing, 5s when paused
+        // Adjust poll interval before publishing state, 2s when playing, 5s when paused
         startPolling(interval: isPlaying ? 2.0 : 5.0)
 
         let newState = PlaybackState(
@@ -301,14 +301,14 @@ class SpotifyService: ObservableObject {
     }
 
     private func fetchArtwork(url: String) {
-        // NETW-03: cancel any in-flight fetch before starting a new one (prevents task stacking)
+        // Cancel any in-flight fetch before starting a new one (prevents task stacking)
         artworkTask?.cancel()
         artworkTask = nil
 
-        // CACH-03: capture key before any async context — Task closure captures a local String copy
+        // Capture key before any async context, Task closure captures a local String copy
         let urlKey = url as NSString
 
-        // CACH-03: serve from cache if available — no URLSession request needed
+        // Serve from cache if available, no URLSession request needed
         if let cachedImage = artworkCache.object(forKey: urlKey) {
             self.artworkImage = cachedImage
             Task.detached(priority: .utility) { [weak self] in
@@ -323,11 +323,11 @@ class SpotifyService: ObservableObject {
         artworkTask = Task {
             do {
                 var request = URLRequest(url: validUrl)
-                request.timeoutInterval = 10  // NETW-01: 10-second timeout (Phase 2 adds retry)
+                request.timeoutInterval = 10  // 10-second timeout
 
                 let (data, response) = try await URLSession.shared.data(for: request)
 
-                // NETW-03: check cancellation after network round-trip completes
+                // Check cancellation after network round-trip completes
                 guard !Task.isCancelled else { return }
 
                 guard let httpResponse = response as? HTTPURLResponse,
@@ -337,7 +337,7 @@ class SpotifyService: ObservableObject {
                     // @MainActor inherited from SpotifyService — direct assignment is safe
                     self.artworkCache.setObject(image, forKey: urlKey)
                     self.artworkImage = image
-                    // CACH-04: extract color off @MainActor — CGContext resize + pixel read
+                    // Extract color off @MainActor, CGContext resize + pixel read
                     Task.detached(priority: .utility) { [weak self] in
                         let color = image.averageColor
                         await MainActor.run { [weak self] in self?.artworkAverageColor = color }
@@ -351,7 +351,7 @@ class SpotifyService: ObservableObject {
 
 }
 
-// LOGG-01/02: os.Logger extension — private scope avoids polluting global Logger namespace
+// os.Logger extension, private scope avoids polluting global Logger namespace
 private extension Logger {
     static let subsystem = Bundle.main.bundleIdentifier ?? "com.auralyrics"
     static let spotifyService = Logger(subsystem: subsystem, category: "SpotifyService")
