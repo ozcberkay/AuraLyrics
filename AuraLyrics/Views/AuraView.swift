@@ -1,4 +1,5 @@
 import SwiftUI
+import AuraLyricsCore
 
 struct AuraView: View {
     @ObservedObject var lyricsManager = LyricsManager.shared

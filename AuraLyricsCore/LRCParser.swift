@@ -1,11 +1,11 @@
 import Foundation
 
-enum LRCParseError: Error {
+public enum LRCParseError: Error, Sendable {
     case regexCompilationFailed
 }
 
-struct LRCParser {
-    static func parse(lrcContent: String) -> Result<[LyricsLine], LRCParseError> {
+public struct LRCParser {
+    public static func parse(lrcContent: String) -> Result<[LyricsLine], LRCParseError> {
         var lines: [LyricsLine] = []
 
         let pattern = "\\[(\\d+):(\\d+)(?:\\.|:)(\\d+)\\](.*)"
@@ -27,7 +27,7 @@ struct LRCParser {
                    let seconds = Double(secondsStr),
                    let hundredths = Double(hundredthsStr) {
 
-                    // PARS-01: normalize divisor by actual digit count so 3-digit "567" → 0.567
+                    // Divide by 10^digitCount so a 3-digit "567" becomes 0.567, not 5.67
                     let digitCount = Double(hundredthsStr.count)
                     let divisor = pow(10.0, digitCount)
                     let fractionalSeconds = hundredths / divisor

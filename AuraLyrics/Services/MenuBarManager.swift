@@ -1,4 +1,5 @@
 import AppKit
+import AuraLyricsCore
 import Combine
 import SwiftUI
 

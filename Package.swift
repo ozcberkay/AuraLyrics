@@ -11,13 +11,22 @@ let package = Package(
     ],
     dependencies: [],
     targets: [
+        .target(
+            name: "AuraLyricsCore",
+            path: "AuraLyricsCore"
+        ),
         .executableTarget(
             name: "AuraLyrics",
-            dependencies: [],
+            dependencies: ["AuraLyricsCore"],
             path: "AuraLyrics",
             resources: [
                 .process("Resources")
             ]
+        ),
+        .testTarget(
+            name: "AuraLyricsCoreTests",
+            dependencies: ["AuraLyricsCore"],
+            path: "Tests/AuraLyricsCoreTests"
         ),
         .testTarget(
             name: "AuraLyricsTests",

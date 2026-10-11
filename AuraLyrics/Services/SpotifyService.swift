@@ -1,4 +1,5 @@
 import Foundation
+import AuraLyricsCore
 import Combine
 import AppKit
 import OSLog

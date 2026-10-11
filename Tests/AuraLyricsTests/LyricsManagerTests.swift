@@ -88,6 +88,8 @@ final class LyricsManagerTests: XCTestCase {
 
     /// LRC files mark instrumental breaks with blank timestamped lines. Selecting one as the
     /// active line blanks the middle of Aura mode, which reads as a broken app.
+    /// The skipping itself is behaviour-tested in AuraLyricsCoreTests; this checks
+    /// updateActiveLine still goes through it.
     func testActiveLineSkipsBlankEntries() throws {
         let sourceURL = URL(fileURLWithPath: #file)
             .deletingLastPathComponent()
@@ -95,9 +97,13 @@ final class LyricsManagerTests: XCTestCase {
             .deletingLastPathComponent()
             .appendingPathComponent("AuraLyrics/Services/LyricsManager.swift")
         let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        guard let start = source.range(of: "func updateActiveLine()") else {
+            return XCTFail("LyricsManager must have updateActiveLine()")
+        }
+        let body = source[start.upperBound...].prefix(600)
         XCTAssertTrue(
-            source.contains("$0.startTime <= currentPosition && !$0.text.isEmpty"),
-            "updateActiveLine must skip blank lyric lines so a gap holds the last sung line"
+            body.contains("activeLine(at:"),
+            "updateActiveLine must use activeLine(at:) so a blank gap holds the last sung line"
         )
     }
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import AuraLyricsCore
 
 struct MenuControlsView: View {
     @ObservedObject var spotifyService = SpotifyService.shared
