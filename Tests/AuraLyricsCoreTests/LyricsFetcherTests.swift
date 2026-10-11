@@ -113,11 +113,48 @@ final class LyricsFetcherTests: XCTestCase {
         XCTAssertEqual(sleeps.delays, [250_000_000], "only the spacing between steps, no retry wait")
     }
 
-    func testOtherStatusMovesOnAndEndsNotFound() async {
+    func testOtherStatusMovesOnAndEndsBadResponse() async {
         MockURLProtocol.reset { _ in (403, Data()) }
         let error = await fetchError()
-        XCTAssertEqual(error as? LyricsError, .notFound)
+        XCTAssertEqual(error as? LyricsError, .badResponse)
         XCTAssertEqual(MockURLProtocol.requests.count, 3)
+    }
+
+    func testBadStatusOnEveryStepGivesGenericErrorState() async {
+        MockURLProtocol.reset { _ in (403, Data()) }
+        let state = await loadState()
+        XCTAssertEqual(state, .error(LyricsFetcher.genericErrorMessage))
+    }
+
+    func testNotFoundOnEveryStepGivesNotFoundState() async {
+        MockURLProtocol.reset { _ in (404, Data()) }
+        let state = await loadState()
+        XCTAssertEqual(state, .notFound(track: "Song", artist: "Band"))
+    }
+
+    func testRateLimitWithoutRetryAfterIsNotRetriedAndEndsBusy() async {
+        MockURLProtocol.reset { _ in (429, Data()) }
+        let state = await loadState()
+        XCTAssertEqual(state, .error(LyricsFetcher.serverBusyMessage))
+        XCTAssertEqual(MockURLProtocol.requests.count, 1)
+        XCTAssertTrue(sleeps.delays.isEmpty, "no retry wait and no spacing")
+    }
+
+    func testRateLimitWithRetryAfterOneSecondIsRetried() async throws {
+        MockURLProtocol.resetWithHeaders(handler: sequence([(429, ["Retry-After": "1"])], then: (200, json(["syncedLyrics": "[00:01.00]ok"]))))
+        let lines = try await fetch()
+        XCTAssertEqual(lines.map(\.text), ["ok"])
+        XCTAssertEqual(MockURLProtocol.requests.count, 2)
+        XCTAssertEqual(sleeps.delays, [1_000_000_000])
+    }
+
+    func testBadResponseOnEarlyStepStillLoadsLaterLyrics() async throws {
+        MockURLProtocol.reset { request in
+            request.url?.path == "/api/get" ? (403, Data()) : (200, try! JSONSerialization.data(withJSONObject: [["syncedLyrics": "[00:01.00]found", "trackName": "Song", "artistName": "Band", "duration": 215.7]]))
+        }
+        let lines = try await fetch()
+        XCTAssertEqual(lines.map(\.text), ["found"])
+        XCTAssertEqual(requestPaths, ["/api/get", "/api/get", "/api/search"])
     }
 
     func testRetriesOn503WithDefaultOneSecondWait() async throws {
@@ -195,10 +232,10 @@ final class LyricsFetcherTests: XCTestCase {
         XCTAssertEqual(state, .instrumental(track: "Song", artist: "Band"))
     }
 
-    func testDecodeFailureMovesOnAndEndsNotFound() async {
+    func testDecodeFailureMovesOnAndEndsGenericError() async {
         MockURLProtocol.reset { _ in (200, Data("not json".utf8)) }
         let state = await loadState()
-        XCTAssertEqual(state, .notFound(track: "Song", artist: "Band"))
+        XCTAssertEqual(state, .error(LyricsFetcher.genericErrorMessage))
         XCTAssertEqual(MockURLProtocol.requests.count, 3)
     }
 
@@ -209,13 +246,13 @@ final class LyricsFetcherTests: XCTestCase {
     }
 
     func testEmptyBodyIsNotFound() async {
-        MockURLProtocol.reset { _ in (200, self.json([:])) }
+        MockURLProtocol.reset { request in (200, request.url?.path == "/api/search" ? Data("[]".utf8) : self.json([:])) }
         let error = await fetchError()
         XCTAssertEqual(error as? LyricsError, .notFound)
     }
 
     func testLyricsParsingToZeroLinesIsNotFound() async {
-        MockURLProtocol.reset { _ in (200, self.json(["plainLyrics": " \n \n"])) }
+        MockURLProtocol.reset { request in (200, request.url?.path == "/api/search" ? Data("[]".utf8) : self.json(["plainLyrics": " \n \n"])) }
         let error = await fetchError()
         XCTAssertEqual(error as? LyricsError, .notFound)
     }
@@ -273,9 +310,9 @@ final class LyricsFetcherTests: XCTestCase {
         XCTAssertEqual(MockURLProtocol.requests.count, 3)
     }
 
-    func testInvalidJSONOnEveryStepEndsNotFound() async {
+    func testInvalidJSONOnEveryStepEndsBadResponse() async {
         MockURLProtocol.reset { _ in (200, Data("not json".utf8)) }
         let error = await fetchError()
-        XCTAssertEqual(error as? LyricsError, .notFound)
+        XCTAssertEqual(error as? LyricsError, .badResponse)
     }
 }

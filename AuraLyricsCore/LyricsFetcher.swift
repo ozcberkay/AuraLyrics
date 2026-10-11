@@ -2,6 +2,9 @@ import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
+#if canImport(os)
+import os
+#endif
 
 public enum LyricsError: Error, Sendable {
     case invalidURL
@@ -10,6 +13,8 @@ public enum LyricsError: Error, Sendable {
     case notFound
     case instrumental  // lrclib.net returned instrumental=true
     case serverUnavailable  // 503/429 after retries, or any other 5xx
+    case badResponse  // 403, another unexpected 4xx or non-200 status, or a 200 that is not valid JSON
+    case rateLimited  // 429 without Retry-After: retrying would only make it worse
 }
 
 // Only these URLError codes are worth retrying; everything else fails immediately.
@@ -51,6 +56,17 @@ public final class LyricsFetcher: Sendable {
 
     private struct BudgetExhausted: Error {}
 
+    /// Logs only the status (or "decode failed") and the endpoint path: never the query,
+    /// the track, the artist or the lyrics.
+    private static func logBad(_ what: String, path: String) {
+        #if canImport(os)
+        logger.error("LRCLIB \(what, privacy: .public) on \(path, privacy: .public)")
+        #endif
+    }
+    #if canImport(os)
+    private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.auralyrics", category: "lyrics")
+    #endif
+
     private enum Step {
         case get(String, String, String)  // title, artist, album ("" leaves album out)
         case search(String, String)  // title, artist
@@ -79,6 +95,7 @@ public final class LyricsFetcher: Sendable {
     }
 
     // Retries transient URLErrors and HTTP 503/429, at most `maxRetries` times in total.
+    // A 429 without a Retry-After header is not retried: it throws `rateLimited` at once.
     // Everything else propagates immediately (a 404 is a response, not an error, so it is
     // never retried). Cancellation stops the loop: the sleep throws, and a sleeper that
     // returns anyway is caught by the explicit check before the next request.
@@ -101,6 +118,10 @@ public final class LyricsFetcher: Sendable {
                 let (data, response) = try await session.data(for: request)
                 guard let http = response as? HTTPURLResponse, http.statusCode == 503 || http.statusCode == 429 else {
                     return (data, response)
+                }
+                if http.statusCode == 429 && http.value(forHTTPHeaderField: "Retry-After") == nil {
+                    Self.logBad("status 429", path: request.url?.path ?? "")
+                    throw LyricsError.rateLimited
                 }
                 guard retries < Self.maxRetries else { throw LyricsError.serverUnavailable }
                 lastFailure = LyricsError.serverUnavailable
@@ -137,13 +158,16 @@ public final class LyricsFetcher: Sendable {
         }
     }
 
-    /// Walks the LRCLIB fallback chain until a step finds lyrics. A missing, empty or
-    /// unreadable answer moves on to the next step. A busy server moves on once and stops
-    /// the chain the second time. A network failure, an instrumental track or cancellation
-    /// ends the call right away.
+    /// Walks the LRCLIB fallback chain until a step finds lyrics. A missing or empty answer
+    /// and an unreadable lyrics text move on to the next step. So does a bad response (403,
+    /// another unexpected status, a 200 that is not JSON), and if nothing is found after one
+    /// the call throws `badResponse` instead of `notFound`. A busy server moves on once and
+    /// stops the chain the second time. A 429 without Retry-After stops the chain at once as
+    /// busy. A network failure, an instrumental track or cancellation ends the call right away.
     public func fetchLyrics(track: String, artist: String, album: String, duration: Double) async throws -> [LyricsLine] {
         var chain = Chain(track: track, artist: artist, duration: duration)
         var busySteps = 0
+        var badSteps = 0
         loop: for step in Self.steps(track: track, artist: artist, album: album) {
             do {
                 switch step {
@@ -154,6 +178,10 @@ public final class LyricsFetcher: Sendable {
                 }
             } catch is BudgetExhausted {
                 break loop
+            } catch LyricsError.rateLimited {
+                throw LyricsError.serverUnavailable
+            } catch LyricsError.badResponse {
+                badSteps += 1
             } catch LyricsError.serverUnavailable {
                 busySteps += 1
                 if busySteps == 2 { break loop }
@@ -161,7 +189,8 @@ public final class LyricsFetcher: Sendable {
                 continue
             }
         }
-        throw busySteps > 0 ? LyricsError.serverUnavailable : LyricsError.notFound
+        if busySteps > 0 { throw LyricsError.serverUnavailable }
+        throw badSteps > 0 ? LyricsError.badResponse : LyricsError.notFound
     }
 
     /// The fallback order: exact get, album-less get, search, then the album-less get and
@@ -185,7 +214,7 @@ public final class LyricsFetcher: Sendable {
         var items = [URLQueryItem(name: "track_name", value: title), URLQueryItem(name: "artist_name", value: artist)]
         if !album.isEmpty { items.append(URLQueryItem(name: "album_name", value: album)) }
         items.append(URLQueryItem(name: "duration", value: Self.durationString(chain.duration)))
-        let response = try Self.decode(LRCLibResponse.self, from: try await send(Self.getURL, items, chain: &chain))
+        let response = try Self.decode(LRCLibResponse.self, from: try await send(Self.getURL, items, chain: &chain), path: "/api/get")
         let lines = try Self.lines(from: response)
         guard (response.syncedLyrics ?? "").isEmpty else { return lines }
 
@@ -224,7 +253,7 @@ public final class LyricsFetcher: Sendable {
     }
 
     private func searchResults(_ items: [URLQueryItem], chain: inout Chain) async throws -> [LRCLibResponse] {
-        try Self.decode([LRCLibResponse].self, from: try await send(Self.searchURL, items, chain: &chain))
+        try Self.decode([LRCLibResponse].self, from: try await send(Self.searchURL, items, chain: &chain), path: "/api/search")
     }
 
     /// Sends one request and returns the body of a 200. A URL already tried in this call
@@ -259,18 +288,20 @@ public final class LyricsFetcher: Sendable {
         }
 
         guard httpResponse.statusCode == 200 else {
-            throw LyricsError.noData
+            Self.logBad("status \(httpResponse.statusCode)", path: url.path)
+            throw LyricsError.badResponse
         }
         return data
     }
 
-    private static func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
+    private static func decode<T: Decodable>(_ type: T.Type, from data: Data, path: String) throws -> T {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         do {
             return try decoder.decode(type, from: data)
         } catch {
-            throw LyricsError.decodeError
+            logBad("decode failed", path: path)
+            throw LyricsError.badResponse
         }
     }
 
