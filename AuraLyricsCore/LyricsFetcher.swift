@@ -193,18 +193,21 @@ public final class LyricsFetcher: Sendable {
         throw badSteps > 0 ? LyricsError.badResponse : LyricsError.notFound
     }
 
-    /// The fallback order: exact get, album-less get, search, then the album-less get and
-    /// search again with a cleaned title and with only the first of several artists.
+    /// The fallback order: every exact get first (with album, album-less, cleaned title, first
+    /// of several artists), then the searches in the same order.
+    // A get is one request while a search can cost two (free-text fallback), so trying every
+    // exact get first reaches the first-artist step inside the request budget even after retries.
     private static func steps(track: String, artist: String, album: String) -> [Step] {
         var steps: [Step] = [.get(track, artist, album)]
         if !album.isEmpty { steps.append(.get(track, artist, "")) }
-        steps.append(.search(track, artist))
         let cleaned = LyricsMatching.cleanTitle(track)
-        if let cleaned { steps += [.get(cleaned, artist, ""), .search(cleaned, artist)] }
+        if let cleaned { steps.append(.get(cleaned, artist, "")) }
         let artists = LyricsMatching.splitArtists(artist)
-        if artists.count > 1 {
-            steps += [.get(cleaned ?? track, artists[0], ""), .search(cleaned ?? track, artists[0])]
-        }
+        let multi = artists.count > 1
+        if multi { steps.append(.get(cleaned ?? track, artists[0], "")) }
+        steps.append(.search(track, artist))
+        if let cleaned { steps.append(.search(cleaned, artist)) }
+        if multi { steps.append(.search(cleaned ?? track, artists[0])) }
         return steps
     }
 

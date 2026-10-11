@@ -100,6 +100,13 @@ final class LyricsMatchingTests: XCTestCase {
         XCTAssertNil(pick([candidate(synced: nil, plain: nil, instrumental: nil)]))
     }
 
+    func testPickBestArtistContainsRule() {
+        XCTAssertNil(pick([candidate(artist: "xavier")], artist: "a"))
+        XCTAssertNotNil(pick([candidate(artist: "Queen & David Bowie")], artist: "Queen"))
+        XCTAssertNotNil(pick([candidate(artist: "Queen")], artist: "Queen & David Bowie"))
+        XCTAssertNil(pick([candidate(artist: "Motive")], artist: "Mo"))
+    }
+
     func testPickBestTitle() {
         XCTAssertNil(pick([candidate(title: "Another Tune")]))
         XCTAssertNotNil(pick([candidate(title: "Kralin Kizi")], title: "Kralın Kızı"))
