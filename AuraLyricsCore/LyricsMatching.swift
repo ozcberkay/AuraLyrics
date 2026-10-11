@@ -121,7 +121,9 @@ enum LyricsMatching {
                 for b in splitArtists(name) where similarity(a, b) >= artistPartThreshold { return true }
             }
             let x = normalize(artist), y = normalize(name)
-            return !x.isEmpty && !y.isEmpty && (x.contains(y) || y.contains(x))
+            let (short, long) = x.count <= y.count ? (x, y) : (y, x)
+            // The shorter name must be a whole word run of the longer one, not a fragment of a word.
+            return short.count >= 3 && (" " + long + " ").contains(" " + short + " ")
         }
 
         return candidates

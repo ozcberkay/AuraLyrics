@@ -208,7 +208,7 @@ final class LyricsFallbackTests: XCTestCase {
         route { call in call.path == "/api/get" && call.query["album_name"] != nil ? (403, Data()) : nil }
         let state = await load("Song (Live)", "A & B", album: "X")
         XCTAssertEqual(state, .error(LyricsFetcher.genericErrorMessage))
-        XCTAssertEqual(calls.map(\.path), ["/api/get", "/api/get", "/api/search", "/api/search", "/api/get", "/api/search"])
+        XCTAssertEqual(calls.map(\.path), ["/api/get", "/api/get", "/api/get", "/api/get", "/api/search", "/api/search"])
     }
 
     // g. Instrumental stops the chain on the spot.
@@ -236,12 +236,39 @@ final class LyricsFallbackTests: XCTestCase {
         XCTAssertEqual(sleeps.delays, [1_000_000_000, 1_000_000_000, 250_000_000, 1_000_000_000, 1_000_000_000])
     }
 
+    // The album get is busy twice, then not found; the first-artist get still fits the budget.
+    func testFirstArtistGetIsReachedAfterBusyRetries() async {
+        let busyAnswers = SleepRecorder()
+        route { call in
+            guard call.path == "/api/get" else { return nil }
+            if call.query["album_name"] != nil {
+                busyAnswers.record(0)
+                return busyAnswers.delays.count <= 2 ? (503, Data()) : (404, Data())
+            }
+            return call.query["artist_name"] == "Murda" ? (200, Self.json(Self.record("karambol", "Murda", duration: 207.214))) : nil
+        }
+        let state = await load("karambol", "Murda, Motive", album: "Some Album", duration: 207.214)
+        XCTAssertEqual(texts(state), ["synced line"])
+        XCTAssertTrue(calls.contains { $0.path == "/api/get" && $0.query["artist_name"] == "Murda" && $0.query["album_name"] == nil })
+        XCTAssertLessThanOrEqual(MockURLProtocol.requests.count, 6)
+        // Retries resend the album get on purpose; every other URL is sent once.
+        let others = calls.filter { $0.query["album_name"] == nil }
+        XCTAssertEqual(others.count, Set(others.map { "\($0.path)\($0.query.sorted { $0.key < $1.key })" }).count)
+    }
+
+    func testMultiArtistBusyServerStaysWithinBudget() async {
+        route { _ in (503, Data()) }
+        let state = await load("karambol", "Murda, Motive", album: "Some Album", duration: 207.214)
+        XCTAssertEqual(state, .error(LyricsFetcher.serverBusyMessage))
+        XCTAssertLessThanOrEqual(MockURLProtocol.requests.count, 6)
+    }
+
     // One busy step moves on; the remaining steps find nothing, yet the call ends busy.
     func testSingleBusyStepMovesOnAndStillEndsBusy() async {
         route { call in call.query["album_name"] != nil ? (503, Data()) : nil }
         let state = await load("Song (Live)", "A & B", album: "X")
         XCTAssertEqual(state, .error(LyricsFetcher.serverBusyMessage))
-        XCTAssertEqual(calls.map(\.path), ["/api/get", "/api/get", "/api/get", "/api/get", "/api/search", "/api/search"])
+        XCTAssertEqual(calls.map(\.path), ["/api/get", "/api/get", "/api/get", "/api/get", "/api/get", "/api/get"])
         XCTAssertEqual(sleeps.delays, [1_000_000_000, 1_000_000_000, 250_000_000, 250_000_000, 250_000_000])
     }
 
