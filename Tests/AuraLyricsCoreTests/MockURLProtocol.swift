@@ -8,12 +8,21 @@ import FoundationNetworking
 /// a transport failure. Every request seen is recorded so tests can count retries.
 final class MockURLProtocol: URLProtocol {
     typealias Handler = (URLRequest) throws -> (Int, Data)
+    /// Same as `Handler` but also returns response headers (e.g. Retry-After).
+    typealias HeaderHandler = (URLRequest) throws -> (Int, [String: String], Data)
 
     private static let lock = NSLock()
-    nonisolated(unsafe) private static var _handler: Handler?
+    nonisolated(unsafe) private static var _handler: HeaderHandler?
     nonisolated(unsafe) private static var _requests: [URLRequest] = []
 
     static func reset(handler: @escaping Handler) {
+        resetWithHeaders(handler: { request in
+            let (status, data) = try handler(request)
+            return (status, [:], data)
+        })
+    }
+
+    static func resetWithHeaders(handler: @escaping HeaderHandler) {
         lock.lock(); defer { lock.unlock() }
         _handler = handler
         _requests = []
@@ -42,8 +51,8 @@ final class MockURLProtocol: URLProtocol {
 
         do {
             guard let handler else { throw URLError(.unknown) }
-            let (status, data) = try handler(request)
-            let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: "HTTP/1.1", headerFields: nil)!
+            let (status, headers, data) = try handler(request)
+            let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: "HTTP/1.1", headerFields: headers)!
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
             client?.urlProtocol(self, didLoad: data)
             client?.urlProtocolDidFinishLoading(self)

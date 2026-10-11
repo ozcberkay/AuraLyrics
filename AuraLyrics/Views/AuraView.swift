@@ -184,10 +184,17 @@ struct AuraView: View {
                     }
 
                 case .error(let message):
-                    Text(message)
-                        .font(.system(size: currentSize.statusFontSize, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.4))
-                        .shadow(color: .black, radius: 1)
+                    VStack(spacing: 4 * currentSize.scaleFactor) {
+                        Text(message)
+                            .font(.system(size: currentSize.statusFontSize, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.4))
+                            .shadow(color: .black, radius: 1)
+                        Button("Retry") { lyricsManager.retry() }
+                            .buttonStyle(.borderless)
+                            .font(.system(size: currentSize.statusFontSize, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.6))
+                            .shadow(color: .black, radius: 1)
+                    }
 
                 case .idle:
                     // Not playing / waiting for track

@@ -170,6 +170,13 @@ class LyricsManager: ObservableObject {
         }
     }
 
+    /// Re-runs the fetch for the current track, used by the Retry button in the error state.
+    /// A track change cancels it through the same fetchTask?.cancel() as any other fetch.
+    func retry() {
+        guard !lastState.track.isEmpty else { return }
+        fetchLyrics(for: lastState)
+    }
+
     private func fetchLyrics(for playbackState: PlaybackState) {
         // Cancel first, before the cache check: a memory-cache hit returns synchronously
         // and an older in-flight fetch would still overwrite it when it lands.
@@ -200,40 +207,29 @@ class LyricsManager: ObservableObject {
                 return
             }
 
-            do {
-                let fetchedLyrics = try await fetcher.fetchLyrics(
-                    track: playbackState.track,
-                    artist: playbackState.artist,
-                    album: playbackState.album,
-                    duration: playbackState.duration
-                )
-                // CACH-01/02: Populate both cache layers after successful network fetch.
-                // Done before the cancellation check on purpose: the response arrived, so
-                // it is worth caching even if the user already skipped to another track.
+            // nil means the fetch was cancelled: leave the screen to whoever cancelled it.
+            guard let result = await fetcher.loadState(
+                track: playbackState.track,
+                artist: playbackState.artist,
+                album: playbackState.album,
+                duration: playbackState.duration
+            ) else { return }
+
+            // CACH-01/02: Populate both cache layers, only for real lyrics. Errors are
+            // temporary and must never be cached. Done before the cancellation check on
+            // purpose: the response arrived, so it is worth caching even if the user
+            // already skipped to another track.
+            if case .loaded(let fetchedLyrics) = result {
                 self.lyricsMemoryCache.setObject(CachedLyricsLines(fetchedLyrics), forKey: cacheKey)
                 self.saveLyricsToDisk(fetchedLyrics, key: key, track: playbackState.track)
+            }
 
-                guard !Task.isCancelled else { return }
-                self.state = .loaded(fetchedLyrics)   // was: self.lyrics = fetchedLyrics; self.isLoading = false
+            guard !Task.isCancelled else { return }
+            self.state = result
 
-                // TIMR-02: restart timer if we were waiting for lyrics to arrive
-                if case .loaded(let lines) = self.state, self.lastState.isPlaying && !lines.isEmpty {
-                    self.startTimerIfNeeded()
-                }
-            } catch {
-                // A cancelled fetch is not a failure: the user moved to another track and
-                // that track's own fetch owns the screen now.
-                guard !Task.isCancelled else { return }
-
-                // ERRH-01/02: typed error dispatch → distinct LyricsState cases
-                switch error as? LyricsError {
-                case .notFound:
-                    self.state = .notFound(track: playbackState.track, artist: playbackState.artist)
-                case .instrumental:
-                    self.state = .instrumental(track: playbackState.track, artist: playbackState.artist)
-                default:
-                    self.state = .error("Failed to fetch lyrics")  // network/decode errors
-                }
+            // TIMR-02: restart timer if we were waiting for lyrics to arrive
+            if case .loaded(let lines) = self.state, self.lastState.isPlaying && !lines.isEmpty {
+                self.startTimerIfNeeded()
             }
         }
     }

@@ -104,9 +104,15 @@ struct LyricsView: View {
 
                     case .error(let message):
                         Spacer()
-                        Text(message)
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
-                            .opacity(0.5)
+                        VStack(spacing: 6) {
+                            Text(message)
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .opacity(0.5)
+                            Button("Retry") { lyricsManager.retry() }
+                                .buttonStyle(.borderless)
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .opacity(0.7)
+                        }
                         Spacer()
 
                     case .loaded(let lines):
