@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # Configuration
 APP_NAME="AuraLyrics"
@@ -17,9 +18,7 @@ echo "🚀 Starting Build Process for $APP_NAME $VERSION..."
 
 # 1. Clean and Build Release
 echo "🛠️  Building Release..."
-swift build -c release --disable-sandbox --product $APP_NAME
-
-if [ $? -ne 0 ]; then
+if ! swift build -c release --disable-sandbox --product "$APP_NAME"; then
     echo "❌ Build Failed!"
     exit 1
 fi
@@ -44,7 +43,7 @@ cp "$EXECUTABLE" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 # copy its contents into Contents/Resources so Bundle.main finds them in the .app.
 
 # Find the resource bundle created by SwiftPM (searching deeper for architecture-specific paths)
-RESOURCE_BUNDLE=$(find .build -name "${APP_NAME}_${APP_NAME}.bundle" | grep "release" | head -n 1)
+RESOURCE_BUNDLE=$(find .build -name "${APP_NAME}_${APP_NAME}.bundle" | grep "release" | head -n 1 || true)
 if [ -n "$RESOURCE_BUNDLE" ] && [ -d "$RESOURCE_BUNDLE" ]; then
     echo "   Found Resource Bundle: $RESOURCE_BUNDLE"
     cp -r "$RESOURCE_BUNDLE/"* "$APP_BUNDLE/Contents/Resources/"

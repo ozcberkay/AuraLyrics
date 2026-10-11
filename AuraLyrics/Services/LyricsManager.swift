@@ -130,10 +130,10 @@ class LyricsManager: ObservableObject {
         }
     }
 
-    /// Re-runs the fetch for the current track, used by the Retry button. It drops any
-    /// cached answer for the track and always asks LRCLIB again, even when a "no lyrics"
-    /// answer is remembered. A track change cancels it through the same
-    /// fetchTask?.cancel() as any other fetch.
+    /// Re-runs the fetch for the current track, used by the Retry button. It skips the
+    /// cache read and always asks LRCLIB again, even when a "no lyrics" answer is
+    /// remembered. The old cached answer stays until a new result replaces it. A track
+    /// change cancels it through the same fetchTask?.cancel() as any other fetch.
     func retry() {
         guard !lastState.track.isEmpty else { return }
         fetchLyrics(for: lastState, forceRefresh: true)

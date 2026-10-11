@@ -76,6 +76,18 @@ final class LyricsManagerTests: XCTestCase {
         }
     }
 
+    /// A locked window ignores mouse events, so the in-window Retry button cannot be clicked.
+    /// The status bar menu must offer Retry too.
+    func testMenuBarOffersRetry() throws {
+        let root = URL(fileURLWithPath: #file)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let menu = try String(contentsOf: root.appendingPathComponent("AuraLyrics/Services/MenuBarManager.swift"), encoding: .utf8)
+        XCTAssertTrue(menu.contains("Retry Lyrics"), "the menu needs a Retry Lyrics item")
+        XCTAssertTrue(menu.contains("LyricsManager.shared.retry()"), "the menu item must call retry()")
+    }
+
     /// Skipping tracks quickly starts a second lyrics fetch while the first is still in
     /// flight. Nothing held the first task, so whichever response landed last won and the
     /// screen could end up showing the previous song's lyrics.

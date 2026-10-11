@@ -204,6 +204,24 @@ final class LyricsFallbackTests: XCTestCase {
         XCTAssertEqual(texts(state), ["plain line"])
     }
 
+    func testPlainOnlyGetIsKeptWhenUpgradeSearchAnswers403() async {
+        route { call in
+            if call.path == "/api/get" { return (200, Self.json(Self.record("Song", "Band", synced: nil, plain: "plain line"))) }
+            return (403, Data())
+        }
+        let state = await load("Song", "Band")
+        XCTAssertEqual(texts(state), ["plain line"])
+    }
+
+    func testPlainOnlyGetIsKeptWhenUpgradeSearchReturnsInvalidJSON() async {
+        route { call in
+            if call.path == "/api/get" { return (200, Self.json(Self.record("Song", "Band", synced: nil, plain: "plain line"))) }
+            return (200, Data("not json".utf8))
+        }
+        let state = await load("Song", "Band")
+        XCTAssertEqual(texts(state), ["plain line"])
+    }
+
     // A bad response on one step moves on; the rest find nothing, yet the call ends as an error.
     func testMixedBadResponseAndNotFoundEndsGenericErrorAfterEveryStep() async {
         route { call in call.path == "/api/get" && call.query["album_name"] != nil ? (403, Data()) : nil }

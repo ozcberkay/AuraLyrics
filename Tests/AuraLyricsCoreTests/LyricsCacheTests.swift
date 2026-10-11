@@ -25,6 +25,8 @@ final class LyricsCacheTests: XCTestCase {
     }
 
     override func tearDown() {
+        // A read waits for queued disk writes, so none lands after the directory is gone.
+        _ = makeCache().cachedState(for: "drain")
         try? FileManager.default.removeItem(at: directory)
         super.tearDown()
     }
@@ -200,15 +202,14 @@ final class LyricsCacheTests: XCTestCase {
         XCTAssertEqual(MockURLProtocol.requests.count, 1)
     }
 
-    func testForcedRefreshThatErrorsLeavesNothingCached() async {
+    func testForcedRefreshThatErrorsKeepsFreshMiss() async {
         serveNothing()
         let cache = makeCache()
         _ = await cache.load(playback(), fetcher: fetcher)
 
         MockURLProtocol.reset { _ in throw URLError(.timedOut) }
         _ = await cache.load(playback(), fetcher: fetcher, forceRefresh: true)
-        XCTAssertNil(cache.cachedState(for: "spotify:track:abc"))
-        XCTAssertFalse(FileManager.default.fileExists(atPath: file(for: "spotify:track:abc").path))
+        XCTAssertEqual(cache.cachedState(for: "spotify:track:abc"), .notFound(track: "Song", artist: "Band"))
     }
 
     // A cancelled fetch returns nil and caches nothing.
@@ -289,5 +290,93 @@ final class LyricsCacheTests: XCTestCase {
         cache.remove("spotify:track:abc")
         XCTAssertNil(cache.cachedState(for: "spotify:track:abc"))
         XCTAssertFalse(FileManager.default.fileExists(atPath: file(for: "spotify:track:abc").path))
+    }
+
+    // Disk path: a fresh instance has an empty memory layer.
+    func testStoreAndRemoveReachDiskForAFreshInstance() {
+        let lines = [LyricsLine(id: UUID(), startTime: 1, text: "kept", isSynced: true)]
+        makeCache().store(.loaded(lines), for: "k")
+        XCTAssertEqual(makeCache().cachedState(for: "k"), .loaded(lines))
+
+        let cache = makeCache()
+        cache.remove("k")
+        XCTAssertNil(makeCache().cachedState(for: "k"))
+        XCTAssertNil(cache.cachedState(for: "k"))
+    }
+
+    func testOldEmptyOrBlankRecordsCountAsNoEntry() async throws {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let blank = [LyricsLine(id: UUID(), startTime: 1, text: " \n", isSynced: true)]
+        let entryBody = { (lines: [LyricsLine]) throws -> Data in
+            try JSONSerialization.data(withJSONObject: ["lines": try JSONSerialization.jsonObject(
+                with: JSONEncoder().encode(lines))])
+        }
+        let bodies: [String: Data] = [
+            "bare": Data("[]".utf8),
+            "entryEmpty": try entryBody([]),
+            "entryBlank": try entryBody(blank),
+        ]
+        serveLyrics()
+        for (key, body) in bodies {
+            try body.write(to: file(for: key))
+            XCTAssertNil(makeCache().cachedState(for: key), "\(key) must count as absent")
+            let before = MockURLProtocol.requests.count
+            let state = await makeCache().load(playback(trackID: key), fetcher: fetcher)
+            XCTAssertEqual(texts(state), ["synced line"], key)
+            XCTAssertGreaterThan(MockURLProtocol.requests.count, before, "\(key) must fetch again")
+        }
+    }
+
+    // Retry keeps the old entry until a new result replaces it.
+    func testForcedRefreshThatIsCancelledKeepsOldEntry() async {
+        serveLyrics()
+        let cache = makeCache()
+        _ = await cache.load(playback(), fetcher: fetcher)
+        let slow = LyricsFetcher(session: MockURLProtocol.session(), sleep: { _ in
+            try await Task.sleep(nanoseconds: 60_000_000_000)
+        })
+        serveNothing()
+        let before = MockURLProtocol.requests.count
+        let task = Task { await cache.load(playback(), fetcher: slow, forceRefresh: true) }
+        let deadline = Date().addingTimeInterval(5)
+        while MockURLProtocol.requests.count == before {
+            guard Date() < deadline else {
+                task.cancel()
+                return XCTFail("no request was sent within 5 s")
+            }
+            try? await Task.sleep(nanoseconds: 5_000_000)
+        }
+        task.cancel()
+        let state = await task.value
+        XCTAssertNil(state)
+        XCTAssertEqual(texts(cache.cachedState(for: "spotify:track:abc")), ["synced line"])
+        XCTAssertEqual(texts(makeCache().cachedState(for: "spotify:track:abc")), ["synced line"])
+    }
+
+    func testForcedRefreshThatErrorsKeepsOldEntry() async {
+        serveLyrics()
+        let cache = makeCache()
+        _ = await cache.load(playback(), fetcher: fetcher)
+
+        MockURLProtocol.reset { _ in throw URLError(.timedOut) }
+        let state = await cache.load(playback(), fetcher: fetcher, forceRefresh: true)
+        guard case .error? = state else { return XCTFail("expected .error, got \(String(describing: state))") }
+        XCTAssertEqual(texts(cache.cachedState(for: "spotify:track:abc")), ["synced line"])
+        XCTAssertEqual(texts(makeCache().cachedState(for: "spotify:track:abc")), ["synced line"])
+    }
+
+    func testForcedRefreshWithLyricsReplacesOldEntry() async {
+        serveLyrics()
+        let cache = makeCache()
+        _ = await cache.load(playback(), fetcher: fetcher)
+
+        MockURLProtocol.reset { _ in (200, try JSONSerialization.data(withJSONObject: [
+            "trackName": "Song", "artistName": "Band", "duration": 200, "instrumental": false,
+            "syncedLyrics": "[00:01.00]new line",
+        ])) }
+        let state = await cache.load(playback(), fetcher: fetcher, forceRefresh: true)
+        XCTAssertEqual(texts(state), ["new line"])
+        XCTAssertEqual(texts(cache.cachedState(for: "spotify:track:abc")), ["new line"])
+        XCTAssertEqual(texts(makeCache().cachedState(for: "spotify:track:abc")), ["new line"])
     }
 }

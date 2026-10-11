@@ -29,6 +29,7 @@ class MenuBarManager: NSObject {
     private var mainMenu: NSMenu!
     private var hideShowItem: NSMenuItem!
     private var modeSwitchItem: NSMenuItem!
+    private var retryItem: NSMenuItem!
     private var lockItem: NSMenuItem!
     private var themeItems: [AppTheme: NSMenuItem] = [:]
     private var sizeItems: [AuraSize: NSMenuItem] = [:]
@@ -99,6 +100,8 @@ class MenuBarManager: NSObject {
     // buildMenu() is called once from setup(), NSHostingView allocated exactly once here
     private func buildMenu() {
         mainMenu = NSMenu()
+        // isEnabled is set by hand (Retry, Aura Size, lock), so AppKit must not re-enable items.
+        mainMenu.autoenablesItems = false
 
         // Controls — NSHostingView allocated ONCE here
         let controlsItem = NSMenuItem()
@@ -120,6 +123,12 @@ class MenuBarManager: NSObject {
         modeSwitchItem = NSMenuItem(title: "", action: nil, keyEquivalent: "l")
         modeSwitchItem.target = self
         mainMenu.addItem(modeSwitchItem)
+
+        // Retry stays reachable while a window is locked (click-through ignores the in-window button).
+        // Enabled state is refreshed in menuWillOpen(_:).
+        retryItem = NSMenuItem(title: "Retry Lyrics", action: #selector(retryLyrics), keyEquivalent: "")
+        retryItem.target = self
+        mainMenu.addItem(retryItem)
 
         mainMenu.addItem(NSMenuItem.separator())
 
@@ -178,6 +187,7 @@ class MenuBarManager: NSObject {
         quitItem.target = self
         mainMenu.addItem(quitItem)
 
+        mainMenu.delegate = self
         statusItem.menu = mainMenu
 
         // Populate initial item state
@@ -205,6 +215,13 @@ class MenuBarManager: NSObject {
         } else {
             modeSwitchItem.title = "Return to Lyrics View"
             modeSwitchItem.action = #selector(switchToLyricsAction)
+        }
+
+        // retryItem is only useful after a failed fetch
+        if case .error = LyricsManager.shared.state {
+            retryItem.isEnabled = true
+        } else {
+            retryItem.isEnabled = false
         }
 
         // Theme checkmarks
@@ -248,6 +265,10 @@ class MenuBarManager: NSObject {
 
     @objc private func switchToAuraAction() {
         switchToAuraMode()
+    }
+
+    @objc private func retryLyrics() {
+        LyricsManager.shared.retry()
     }
 
     @objc private func toggleLockLyrics() {
@@ -294,5 +315,12 @@ class MenuBarManager: NSObject {
         guard let size = sender.representedObject as? AuraSize else { return }
         AuraSizeManager.shared.setSize(size)
         updateMenu()
+    }
+}
+
+extension MenuBarManager: NSMenuDelegate {
+    // AppKit calls this on the main thread, but the protocol method is not annotated @MainActor.
+    nonisolated func menuWillOpen(_ menu: NSMenu) {
+        MainActor.assumeIsolated { updateMenu() }
     }
 }
