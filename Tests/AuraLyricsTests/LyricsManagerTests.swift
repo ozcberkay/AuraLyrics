@@ -47,13 +47,23 @@ final class LyricsManagerTests: XCTestCase {
             "ERRH-01: LyricsManager must use @Published var state: LyricsState"
         )
         XCTAssertTrue(
-            source.contains("case .notFound"),
-            "ERRH-01: LyricsManager fetchLyrics must catch LyricsError.notFound and set .notFound state"
+            source.contains("fetcher.loadState("),
+            "LyricsManager must map fetch results to LyricsState through the Core loadState (notFound, instrumental, error)"
         )
-        XCTAssertTrue(
-            source.contains("case .instrumental"),
-            "ERRH-02: LyricsManager fetchLyrics must catch LyricsError.instrumental and set .instrumental state"
-        )
+    }
+
+    /// The error state offers a Retry button. Source inspection because the views need AppKit.
+    func testErrorStateRetryIsWired() throws {
+        let root = URL(fileURLWithPath: #file)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let manager = try String(contentsOf: root.appendingPathComponent("AuraLyrics/Services/LyricsManager.swift"), encoding: .utf8)
+        XCTAssertTrue(manager.contains("func retry()"), "LyricsManager must expose retry()")
+        for view in ["LyricsView", "AuraView"] {
+            let source = try String(contentsOf: root.appendingPathComponent("AuraLyrics/Views/\(view).swift"), encoding: .utf8)
+            XCTAssertTrue(source.contains("lyricsManager.retry()"), "\(view) must call lyricsManager.retry() from its error state")
+        }
     }
 
     /// Skipping tracks quickly starts a second lyrics fetch while the first is still in
@@ -81,8 +91,8 @@ final class LyricsManagerTests: XCTestCase {
         )
         // A cancelled fetch must write neither lyrics nor an error message.
         XCTAssertEqual(
-            source.components(separatedBy: "guard !Task.isCancelled else { return }").count - 1, 3,
-            "each state write after an await must be guarded: disk cache, network success, catch"
+            source.components(separatedBy: "guard !Task.isCancelled else { return }").count - 1, 2,
+            "each state write after an await must be guarded: disk cache, network result"
         )
     }
 

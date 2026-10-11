@@ -6,8 +6,31 @@ import FoundationNetworking
 
 final class LyricsFetcherTests: XCTestCase {
 
+    /// Collects every wait the fetcher asks for, without actually waiting.
+    private final class SleepRecorder: @unchecked Sendable {
+        private let lock = NSLock()
+        private var _delays: [UInt64] = []
+        var delays: [UInt64] { lock.lock(); defer { lock.unlock() }; return _delays }
+        func record(_ delay: UInt64) { lock.lock(); _delays.append(delay); lock.unlock() }
+    }
+
+    private let sleeps = SleepRecorder()
+
     private func makeFetcher() -> LyricsFetcher {
-        LyricsFetcher(session: MockURLProtocol.session(), retryDelays: [0, 0])
+        let recorder = sleeps
+        return LyricsFetcher(session: MockURLProtocol.session(), sleep: { recorder.record($0) })
+    }
+
+    private func loadState() async -> LyricsState? {
+        await makeFetcher().loadState(track: "Song", artist: "Band", album: "Live at Home", duration: 215.7)
+    }
+
+    private func sequence(_ responses: [(Int, [String: String])], then final: (Int, Data)) -> MockURLProtocol.HeaderHandler {
+        return { _ in
+            let index = MockURLProtocol.requests.count - 1
+            if index < responses.count { return (responses[index].0, responses[index].1, Data()) }
+            return (final.0, [:], final.1)
+        }
     }
 
     private func fetch() async throws -> [LyricsLine] {
@@ -77,10 +100,131 @@ final class LyricsFetcherTests: XCTestCase {
         XCTAssertEqual(MockURLProtocol.requests.count, 1)
     }
 
-    func testServerErrorThrowsNoData() async {
+    func testServerErrorThrowsServerUnavailableWithoutRetry() async {
         MockURLProtocol.reset { _ in (500, Data()) }
         let error = await fetchError()
+        XCTAssertEqual(error as? LyricsError, .serverUnavailable)
+        XCTAssertEqual(MockURLProtocol.requests.count, 1)
+        XCTAssertTrue(sleeps.delays.isEmpty)
+    }
+
+    func testOtherStatusThrowsNoData() async {
+        MockURLProtocol.reset { _ in (403, Data()) }
+        let error = await fetchError()
         XCTAssertEqual(error as? LyricsError, .noData)
+    }
+
+    func testRetriesOn503WithDefaultOneSecondWait() async throws {
+        MockURLProtocol.resetWithHeaders(handler: sequence([(503, [:])], then: (200, json(["plainLyrics": "ok"]))))
+        let lines = try await fetch()
+        XCTAssertEqual(lines.map(\.text), ["ok"])
+        XCTAssertEqual(MockURLProtocol.requests.count, 2)
+        XCTAssertEqual(sleeps.delays, [1_000_000_000])
+    }
+
+    func testRetriesOn503HonouringRetryAfter() async throws {
+        MockURLProtocol.resetWithHeaders(handler: sequence([(503, ["Retry-After": "2"])], then: (200, json(["plainLyrics": "ok"]))))
+        _ = try await fetch()
+        XCTAssertEqual(sleeps.delays, [2_000_000_000])
+    }
+
+    func testRetriesOn429HonouringRetryAfter() async throws {
+        MockURLProtocol.resetWithHeaders(handler: sequence([(429, ["Retry-After": "3"])], then: (200, json(["plainLyrics": "ok"]))))
+        _ = try await fetch()
+        XCTAssertEqual(MockURLProtocol.requests.count, 2)
+        XCTAssertEqual(sleeps.delays, [3_000_000_000])
+    }
+
+    func testRetryAfterIsCappedAtFiveSeconds() async throws {
+        MockURLProtocol.resetWithHeaders(handler: sequence([(503, ["Retry-After": "30"])], then: (200, json(["plainLyrics": "ok"]))))
+        _ = try await fetch()
+        XCTAssertEqual(sleeps.delays, [5_000_000_000])
+    }
+
+    func testUnparseableRetryAfterFallsBackToOneSecond() async throws {
+        MockURLProtocol.resetWithHeaders(handler: sequence([(503, ["Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT"])], then: (200, json(["plainLyrics": "ok"]))))
+        _ = try await fetch()
+        XCTAssertEqual(sleeps.delays, [1_000_000_000])
+    }
+
+    func testThree503sGiveServerUnavailableState() async {
+        MockURLProtocol.reset { _ in (503, Data()) }
+        let state = await loadState()
+        XCTAssertEqual(state, .error(LyricsFetcher.serverBusyMessage))
+        XCTAssertEqual(MockURLProtocol.requests.count, 3)
+        XCTAssertEqual(sleeps.delays, [1_000_000_000, 1_000_000_000])
+    }
+
+    func testUrlErrorsAndHttpRetriesShareOneBudget() async {
+        MockURLProtocol.resetWithHeaders(handler: { _ in
+            if MockURLProtocol.requests.count == 1 { throw URLError(.timedOut) }
+            return (503, [:], Data())
+        })
+        let state = await loadState()
+        XCTAssertEqual(state, .error(LyricsFetcher.serverBusyMessage))
+        XCTAssertEqual(MockURLProtocol.requests.count, 3)
+        XCTAssertEqual(sleeps.delays, [2_000_000_000, 1_000_000_000])
+    }
+
+    func testThreeUrlErrorsGiveNetworkErrorState() async {
+        MockURLProtocol.reset { _ in throw URLError(.notConnectedToInternet) }
+        let state = await loadState()
+        XCTAssertEqual(state, .error(LyricsFetcher.networkErrorMessage))
+        XCTAssertEqual(sleeps.delays, [2_000_000_000, 5_000_000_000])
+    }
+
+    func testNotFoundStateWithoutRetryOrSleep() async {
+        MockURLProtocol.reset { _ in (404, Data()) }
+        let state = await loadState()
+        XCTAssertEqual(state, .notFound(track: "Song", artist: "Band"))
+        XCTAssertEqual(MockURLProtocol.requests.count, 1)
+        XCTAssertTrue(sleeps.delays.isEmpty)
+    }
+
+    func testInstrumentalState() async {
+        MockURLProtocol.reset { _ in (200, self.json(["instrumental": true])) }
+        let state = await loadState()
+        XCTAssertEqual(state, .instrumental(track: "Song", artist: "Band"))
+    }
+
+    func testDecodeFailureGivesGenericError() async {
+        MockURLProtocol.reset { _ in (200, Data("not json".utf8)) }
+        let state = await loadState()
+        XCTAssertEqual(state, .error(LyricsFetcher.genericErrorMessage))
+    }
+
+    func testEmptyBodyIsNotFound() async {
+        MockURLProtocol.reset { _ in (200, self.json([:])) }
+        let error = await fetchError()
+        XCTAssertEqual(error as? LyricsError, .notFound)
+    }
+
+    func testLyricsParsingToZeroLinesIsNotFound() async {
+        MockURLProtocol.reset { _ in (200, self.json(["plainLyrics": " \n \n"])) }
+        let error = await fetchError()
+        XCTAssertEqual(error as? LyricsError, .notFound)
+    }
+
+    func testSuccessLoadsState() async {
+        MockURLProtocol.reset { _ in (200, self.json(["plainLyrics": "la"])) }
+        guard case .loaded(let lines)? = await loadState() else { return XCTFail("expected .loaded") }
+        XCTAssertEqual(lines.map(\.text), ["la"])
+    }
+
+    func testCancelledFetchReturnsNilAndSendsNoFurtherRequest() async {
+        MockURLProtocol.reset { _ in (503, Data()) }
+        let fetcher = LyricsFetcher(session: MockURLProtocol.session(), sleep: { _ in
+            try await Task.sleep(nanoseconds: 60_000_000_000)
+        })
+        let task = Task {
+            await fetcher.loadState(track: "Song", artist: "Band", album: "Live at Home", duration: 215.7)
+        }
+        // Wait until the first request is out, so the fetcher is parked inside its sleep.
+        while MockURLProtocol.requests.isEmpty { try? await Task.sleep(nanoseconds: 5_000_000) }
+        task.cancel()
+        let state = await task.value
+        XCTAssertNil(state)
+        XCTAssertEqual(MockURLProtocol.requests.count, 1)
     }
 
     func testTransientErrorIsRetried() async throws {
