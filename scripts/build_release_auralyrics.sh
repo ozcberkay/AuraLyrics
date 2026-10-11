@@ -2,7 +2,7 @@
 
 # Configuration
 APP_NAME="AuraLyrics"
-VERSION="1.2.0"          # single source of truth — written into Info.plist below
+VERSION="${VERSION:-1.2.0}"   # written into Info.plist below; the release workflow overrides it via the environment
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 if [ "$(git -C "$REPO_ROOT" rev-parse --is-shallow-repository 2>/dev/null)" = "true" ]; then
     echo "⚠️  Shallow clone: the build number comes from a truncated commit count."

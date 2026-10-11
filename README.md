@@ -72,6 +72,10 @@ Swift 5.9 / Xcode 15 or later. Run `scripts/build_release_auralyrics.sh` to prod
 
 The package targets Swift 5 language mode and builds with zero warnings. It also compiles under full Swift 6 language mode. Building Swift 5 with `-strict-concurrency=complete` still reports diagnostics in `WindowManager` about calling main-actor `NSWindow` methods from a nonisolated context. Swift 6's region-based isolation analysis accepts the same code, so those are not tracked as defects.
 
+## Releasing
+
+Pushing a `v*` tag builds the app on a GitHub Actions macOS runner, publishes a GitHub Release with `AuraLyrics.tar.gz`, and opens a pull request on the Homebrew tap with the new version and checksum. See [CONTRIBUTING.md](CONTRIBUTING.md) for the steps.
+
 ## Lyrics, privacy and legal
 
 Lyrics come from the [LRCLIB](https://lrclib.net) community database. AuraLyrics ships no lyrics of its own and shows whatever LRCLIB returns.

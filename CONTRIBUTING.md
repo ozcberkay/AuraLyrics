@@ -52,6 +52,20 @@ with real behaviour tests against the Foundation-only `AuraLyricsCore` library
 the app. Anything touching `LRCParser`, `LyricsFetcher` or the caching layer
 should come with cases, because that is where the bugs have historically been.
 
+## Releasing
+
+Maintainers only. A `v*` tag push runs `.github/workflows/release.yml`.
+
+1. Merge everything to release into `main` and make sure CI is green.
+2. Optional dry run: Actions, Release, Run workflow, enter a version such as `1.3.0`. It builds and uploads the archive as a workflow artifact, with no release and no tap PR. Pull requests that touch the workflow or the build script run the same dry run.
+3. Tag and push: `git tag v1.3.0 && git push origin v1.3.0`. The tag must be `vMAJOR.MINOR.PATCH`.
+4. The workflow builds with the tag's version, checks it against the app's Info.plist, creates the GitHub Release with `AuraLyrics.tar.gz` and its SHA256, then opens a pull request on `ozcberkay/homebrew-tap` that updates `version` and `sha256` in `Casks/auralyrics.rb`.
+5. Edit the release notes on GitHub, then merge the tap pull request. Users get the update with `brew upgrade --cask auralyrics`.
+
+The tap pull request needs a `HOMEBREW_TAP_TOKEN` repository secret: a token with contents and pull request write access to the tap. Without it the workflow still publishes the release and prints a notice. Update the cask by hand with the version and the SHA256 from the release notes.
+
+The app is ad-hoc signed, not notarized. Downloading the archive directly needs one extra step on first launch (System Settings, Privacy & Security, Open Anyway). The cask removes the quarantine attribute, so Homebrew installs are unaffected.
+
 ## Commits
 
 - Present tense, lower case, no trailing full stop: `fix: cache collisions on
