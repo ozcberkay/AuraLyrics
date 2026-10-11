@@ -11,23 +11,43 @@
         ]
       }
     ],
-    "PostToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node /Users/berkayozcan/workspace/kumanda/panel.mjs --quiet"
-          }
-        ]
-      }
-    ],
     "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
             "command": "node /Users/berkayozcan/workspace/kumanda/root.mjs --increment-session && node /Users/berkayozcan/workspace/kumanda/startup.mjs"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /Users/berkayozcan/workspace/kumanda/run-hook.mjs SubagentStart"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /Users/berkayozcan/workspace/kumanda/run-hook.mjs SubagentStop"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /Users/berkayozcan/workspace/kumanda/run-hook.mjs SessionEnd",
+            "timeout": 10
           }
         ]
       }
