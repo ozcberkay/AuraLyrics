@@ -54,6 +54,45 @@ final class CoreHelpersTests: XCTestCase {
         XCTAssertTrue(AppInfo.repositoryURL.contains("github.com/ozcberkay/AuraLyrics"))
     }
 
+    func testVersionDescriptionFallsBackToDev() {
+        XCTAssertEqual(AppInfo.versionDescription(infoDictionary: nil), "dev")
+        XCTAssertEqual(AppInfo.versionDescription(infoDictionary: [:]), "dev")
+        XCTAssertEqual(AppInfo.versionDescription(infoDictionary: ["CFBundleShortVersionString": ""]), "dev")
+        XCTAssertEqual(AppInfo.shortVersion(infoDictionary: nil), "dev")
+    }
+
+    func testVersionDescriptionShortVersionOnly() {
+        XCTAssertEqual(AppInfo.versionDescription(infoDictionary: ["CFBundleShortVersionString": "1.2.0"]), "1.2.0")
+    }
+
+    func testVersionDescriptionHidesBuildEqualToVersion() {
+        let info: [String: Any] = ["CFBundleShortVersionString": "1.2.0", "CFBundleVersion": "1.2.0"]
+        XCTAssertEqual(AppInfo.versionDescription(infoDictionary: info), "1.2.0")
+    }
+
+    func testVersionDescriptionShowsDifferentBuild() {
+        let info: [String: Any] = ["CFBundleShortVersionString": "1.2.0", "CFBundleVersion": "142"]
+        XCTAssertEqual(AppInfo.versionDescription(infoDictionary: info), "1.2.0 (142)")
+    }
+
+    func testVersionDescriptionCommitOnly() {
+        let info: [String: Any] = ["CFBundleShortVersionString": "1.2.0", AppInfo.gitCommitKey: "abc1234"]
+        XCTAssertEqual(AppInfo.versionDescription(infoDictionary: info), "1.2.0 (abc1234)")
+    }
+
+    func testVersionDescriptionBuildAndCommit() {
+        let info: [String: Any] = [
+            "CFBundleShortVersionString": "1.2.0", "CFBundleVersion": "142", AppInfo.gitCommitKey: "abc1234",
+        ]
+        XCTAssertEqual(AppInfo.versionDescription(infoDictionary: info), "1.2.0 (142, abc1234)")
+    }
+
+    func testVersionDescriptionIgnoresNonStringValues() {
+        let info: [String: Any] = ["CFBundleShortVersionString": "1.2.0", "CFBundleVersion": 142, AppInfo.gitCommitKey: 7]
+        XCTAssertEqual(AppInfo.versionDescription(infoDictionary: info), "1.2.0")
+        XCTAssertEqual(AppInfo.versionDescription(infoDictionary: ["CFBundleShortVersionString": 1.2]), "dev")
+    }
+
     // MARK: - Active line
 
     func testActiveLineIsNilBeforeFirstLine() {
