@@ -64,7 +64,7 @@ class SpotifyService: ObservableObject {
     private let spotifyNotificationName = Notification.Name("com.spotify.client.PlaybackStateChanged")
 
     // Embedded AppleScript to ensure it works without external resources
-    // Fetches: Name, Artist, Album, Duration, Position, State, ArtworkURL
+    // Fetches: Name, Artist, Album, Duration, Position, State, ArtworkURL, TrackID
     private let pollScriptSource: String = """
     tell application "Spotify"
         if it is running then
@@ -75,10 +75,14 @@ class SpotifyService: ObservableObject {
                 set tAlbum to album of t
                 set tDuration to duration of t
                 set tArtwork to artwork url of t
+                set tID to ""
+                try
+                    set tID to id of t
+                end try
                 set pState to player state
                 set pPosition to player position
 
-                return tName & "|||" & tArtist & "|||" & tAlbum & "|||" & tDuration & "|||" & pPosition & "|||" & pState & "|||" & tArtwork
+                return tName & "|||" & tArtist & "|||" & tAlbum & "|||" & tDuration & "|||" & pPosition & "|||" & pState & "|||" & tArtwork & "|||" & tID
             on error
                 return "ERROR"
             end try
@@ -228,7 +232,9 @@ class SpotifyService: ObservableObject {
     }
 
     private func parseResult(_ input: String) {
-        // Format: Name|||Artist|||Album|||Duration(s)|||Position(s)|||State(playing/paused)|||ArtworkUrl
+        // Format: Name|||Artist|||Album|||Duration(s)|||Position(s)|||State(playing/paused)|||ArtworkUrl|||TrackID
+        // The track id is the last field so the first seven keep their positions. A
+        // seven-field result (no id) still parses, with an empty track id.
 
         let parts = input.components(separatedBy: "|||")
 
@@ -269,6 +275,7 @@ class SpotifyService: ObservableObject {
         }
 
         let stateString = parts[5]
+        let trackID = parts.count > 7 ? parts[7] : ""
 
         let isPlaying = (stateString == "playing")
 
@@ -284,7 +291,8 @@ class SpotifyService: ObservableObject {
             duration: duration,
             artworkUrl: artworkUrl,
             isSpotifyRunning: true, // If we got here, it's running
-            timestamp: Date()
+            timestamp: Date(),
+            trackID: trackID
         )
 
         if self.currentState != newState {

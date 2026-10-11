@@ -14,32 +14,35 @@ final class CachingTests: XCTestCase {
 
     // MARK: - CACH-01: In-memory NSCache for lyrics
 
-    /// CACH-01: LyricsManager must have NSCache<NSString, CachedLyricsLines> with countLimit=50
+    /// The memory cache lives in AuraLyricsCore's LyricsCache (behaviour-tested there);
+    /// LyricsManager must route through it, and it must stay bounded at 50 entries.
     func testLyricsMemoryCachePresent() throws {
-        let source = try String(contentsOf: sourcePath("AuraLyrics/Services/LyricsManager.swift"), encoding: .utf8)
+        let manager = try String(contentsOf: sourcePath("AuraLyrics/Services/LyricsManager.swift"), encoding: .utf8)
+        let cache = try String(contentsOf: sourcePath("AuraLyricsCore/LyricsCache.swift"), encoding: .utf8)
 
-        XCTAssertTrue(source.contains("lyricsMemoryCache"),
-                      "CACH-01: LyricsManager must have lyricsMemoryCache property")
-        XCTAssertTrue(source.contains("NSCache"),
-                      "CACH-01: LyricsManager must use NSCache for in-memory caching")
-        XCTAssertTrue(source.contains("countLimit"),
-                      "CACH-01: NSCache must have countLimit set")
-        XCTAssertTrue(source.contains("50"),
-                      "CACH-01: NSCache countLimit must be 50")
+        XCTAssertTrue(manager.contains("private let lyricsCache = LyricsCache("),
+                      "LyricsManager must cache through the Core LyricsCache")
+        XCTAssertTrue(cache.contains("lyricsMemoryCache"),
+                      "LyricsCache must have a lyricsMemoryCache property")
+        XCTAssertTrue(cache.contains("NSCache"),
+                      "LyricsCache must use NSCache for in-memory caching")
+        XCTAssertTrue(cache.contains("countLimit = 50"),
+                      "The memory cache countLimit must be 50")
     }
 
     // MARK: - CACH-02: Disk cache in ~/Library/Caches/AuraLyrics/
 
-    /// CACH-02: LyricsManager must read/write ~/Library/Caches/AuraLyrics/*.json
+    /// The disk cache must live in ~/Library/Caches/AuraLyrics/ as JSON files.
     func testDiskCachePresent() throws {
-        let source = try String(contentsOf: sourcePath("AuraLyrics/Services/LyricsManager.swift"), encoding: .utf8)
+        let manager = try String(contentsOf: sourcePath("AuraLyrics/Services/LyricsManager.swift"), encoding: .utf8)
+        let cache = try String(contentsOf: sourcePath("AuraLyricsCore/LyricsCache.swift"), encoding: .utf8)
 
-        XCTAssertTrue(source.contains("AuraLyrics"),
-                      "CACH-02: LyricsManager must use 'AuraLyrics' as the cache subdirectory name")
-        XCTAssertTrue(source.contains("JSONEncoder"),
-                      "CACH-02: LyricsManager must use JSONEncoder for disk serialization")
-        XCTAssertTrue(source.contains("saveLyricsToDisk") || source.contains("saveToDisk"),
-                      "CACH-02: LyricsManager must have a saveLyricsToDisk or saveToDisk function")
+        XCTAssertTrue(manager.contains(".cachesDirectory") && manager.contains("appendingPathComponent(\"AuraLyrics\""),
+                      "LyricsManager must give LyricsCache the ~/Library/Caches/AuraLyrics directory")
+        XCTAssertTrue(cache.contains("JSONEncoder"),
+                      "LyricsCache must use JSONEncoder for disk serialization")
+        XCTAssertTrue(cache.contains("func saveToDisk"),
+                      "LyricsCache must have a saveToDisk function")
     }
 
     // MARK: - CACH-03: Artwork memory cache (Plan 02)
@@ -133,6 +136,10 @@ final class CachingTests: XCTestCase {
         XCTAssertTrue(
             source.contains("import CryptoKit") && source.contains("SHA256.hash"),
             "Disk cache filenames must be hashed rather than sanitised by hand"
+        )
+        XCTAssertTrue(
+            source.contains("fileName: LyricsManager.hashedFileName"),
+            "LyricsCache must be given the SHA256 file-name function"
         )
     }
 }

@@ -158,6 +158,25 @@ final class SpotifyServiceTests: XCTestCase {
         )
     }
 
+    // The poll script appends the Spotify track id as the eighth field. The first seven
+    // must keep their positions, and a seven-field result must still parse (empty id).
+    func testTrackIDIsReadAsOptionalEighthField() throws {
+        let sourceURL = URL(fileURLWithPath: #file)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("AuraLyrics/Services/SpotifyService.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        XCTAssertTrue(source.contains("set tID to id of t"), "the poll script must read the track id")
+        XCTAssertTrue(source.contains("& \"|||\" & tArtwork & \"|||\" & tID"),
+                      "the track id must be the last field, after the artwork URL")
+        XCTAssertTrue(source.contains("guard parts.count >= 7 else"),
+                      "a seven-field result must still be accepted")
+        XCTAssertTrue(source.contains("let trackID = parts.count > 7 ? parts[7] : \"\""),
+                      "the eighth field is optional and defaults to an empty id")
+        XCTAssertTrue(source.contains("trackID: trackID"), "the id must reach PlaybackState")
+    }
+
     // Spotify reports duration in milliseconds for every track. The old heuristic only
     // converted when the value exceeded 10000, so tracks under ten seconds kept their
     // raw millisecond duration and never matched anything in lrclib.

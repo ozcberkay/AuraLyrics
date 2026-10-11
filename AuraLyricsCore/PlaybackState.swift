@@ -10,6 +10,7 @@ public struct PlaybackState: Equatable, CustomStringConvertible, Sendable {
     public let artworkUrl: String // URL string for the album art
     public let isSpotifyRunning: Bool // Whether the Spotify application is running
     public let timestamp: Date // Time when this state was captured, for sync interpolation
+    public let trackID: String // Spotify track URI (spotify:track:...), "" when unknown
 
     public init(
         track: String,
@@ -20,7 +21,8 @@ public struct PlaybackState: Equatable, CustomStringConvertible, Sendable {
         duration: TimeInterval,
         artworkUrl: String,
         isSpotifyRunning: Bool,
-        timestamp: Date
+        timestamp: Date,
+        trackID: String = ""
     ) {
         self.track = track
         self.artist = artist
@@ -31,6 +33,7 @@ public struct PlaybackState: Equatable, CustomStringConvertible, Sendable {
         self.artworkUrl = artworkUrl
         self.isSpotifyRunning = isSpotifyRunning
         self.timestamp = timestamp
+        self.trackID = trackID
     }
 
     public var description: String {
@@ -70,7 +73,11 @@ extension PlaybackState {
     /// remaster and the studio version of the same song return different lyrics and
     /// different timings. Keying on title and artist alone made them share a single
     /// cache entry, and whichever was played first won for all of them.
+    ///
+    /// When Spotify gives a track id, the id is the key: the title, album or duration
+    /// Spotify reports for the same recording can change, the id does not.
     public var lyricsCacheKey: String {
-        "\(track)---\(artist)---\(album)---\(Int(duration))"
+        if !trackID.isEmpty { return trackID }
+        return "\(track)---\(artist)---\(album)---\(Int(duration))"
     }
 }
