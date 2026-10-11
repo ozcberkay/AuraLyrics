@@ -1,0 +1,164 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  # Dry run: builds and uploads the archive only. Needs the file on the default
+  # branch before the Actions tab offers it.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to build, for example 1.3.0
+        type: string
+        required: true
+  # Dry run too. workflow_dispatch only works once this file is on the default
+  # branch, so this keeps the release path tested whenever it or the script changes.
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/release.yml
+      - scripts/build_release_auralyrics.sh
+
+# Releases never cancel each other: a half-published release is worse than a queue.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build archive
+    runs-on: macos-latest
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      sha256: ${{ steps.checksum.outputs.sha256 }}
+
+    steps:
+      # Full history: the build number is the commit count, a shallow clone breaks it.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Refs and inputs are untrusted text, so they reach the script only through env.
+      - name: Resolve version
+        id: version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          case "$EVENT_NAME" in
+            push) VERSION="${REF_NAME#v}" ;;
+            workflow_dispatch) VERSION="$INPUT_VERSION" ;;
+            *) VERSION="0.0.0-dryrun" ;;
+          esac
+          if [ "$EVENT_NAME" != "pull_request" ] && ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version '$VERSION' is not MAJOR.MINOR.PATCH"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: scripts/build_release_auralyrics.sh
+
+      - name: Verify the bundle
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          PLIST=dist/AuraLyrics.app/Contents/Info.plist
+          ACTUAL=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST")
+          if [ "$ACTUAL" != "$VERSION" ]; then
+            echo "::error::Info.plist says $ACTUAL, expected $VERSION"
+            exit 1
+          fi
+          echo "CFBundleVersion: $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PLIST")"
+          echo "AuraLyricsGitCommit: $(/usr/libexec/PlistBuddy -c 'Print :AuraLyricsGitCommit' "$PLIST")"
+
+      - name: Checksum
+        id: checksum
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          SHA=$(shasum -a 256 dist/AuraLyrics.tar.gz | cut -d' ' -f1)
+          echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
+          {
+            echo "### AuraLyrics $VERSION"
+            echo "SHA256: \`$SHA\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AuraLyrics-${{ steps.version.outputs.version }}
+          path: dist/AuraLyrics.tar.gz
+          if-no-files-found: error
+
+  # Separate job so contents: write exists only where a release is created.
+  release:
+    name: Publish release
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: AuraLyrics-${{ needs.build.outputs.version }}
+
+      # The maintainer edits the prose by hand after the release exists.
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.build.outputs.version }}
+          SHA256: ${{ needs.build.outputs.sha256 }}
+        run: |
+          NOTES=$(cat <<NOTES_EOF
+          Release notes to follow.
+
+          Install with Homebrew:
+
+          \`\`\`
+          brew install --cask ozcberkay/tap/auralyrics
+          \`\`\`
+
+          The app is ad-hoc signed, not notarized. If you download the archive directly, open the app once, then go to System Settings, Privacy & Security and choose Open Anyway. Homebrew installs are unaffected.
+
+          SHA256 \`$SHA256\`
+          NOTES_EOF
+          )
+          gh release create "$TAG" AuraLyrics.tar.gz --title "AuraLyrics $VERSION" --notes "$NOTES"
+
+      - name: Open the Homebrew tap pull request
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          VERSION: ${{ needs.build.outputs.version }}
+          SHA256: ${{ needs.build.outputs.sha256 }}
+        run: |
+          if [ -z "$HOMEBREW_TAP_TOKEN" ]; then
+            echo "::notice::HOMEBREW_TAP_TOKEN is not set, so the cask was not updated. Edit Casks/auralyrics.rb in ozcberkay/homebrew-tap by hand: set version to $VERSION and sha256 to $SHA256."
+            exit 0
+          fi
+          export GH_TOKEN="$HOMEBREW_TAP_TOKEN"
+          gh auth setup-git
+          gh repo clone ozcberkay/homebrew-tap tap
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "auralyrics-$VERSION"
+          CASK=Casks/auralyrics.rb
+          sed -i -E "s/^(  version \").*(\")/\1$VERSION\2/; s/^(  sha256 \").*(\")/\1$SHA256\2/" "$CASK"
+          grep -q "^  version \"$VERSION\"" "$CASK" || { echo "::error::version line not updated"; exit 1; }
+          grep -q "^  sha256 \"$SHA256\"" "$CASK" || { echo "::error::sha256 line not updated"; exit 1; }
+          git commit -am "auralyrics $VERSION"
+          git push origin "auralyrics-$VERSION"
+          gh pr create -R ozcberkay/homebrew-tap --base main --head "auralyrics-$VERSION" \
+            --title "auralyrics $VERSION" --body "Version and sha256 for AuraLyrics $VERSION, opened by the release workflow."
